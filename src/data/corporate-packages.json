@@ -1,0 +1,44 @@
+[
+  {
+    "id": "pkg-01",
+    "name": "Art & Craft Hamper",
+    "priceStart": "₹2,500+",
+    "image": "/products/corporate_hamper_craft.jpg",
+    "description": "A handcrafted wooden keepsake box containing an original framed miniature painting, hand-poured soy candle, organic tea tin, and brass keepsake bell.",
+    "contents": [
+      "Framed original miniature artwork by neurodivergent artist",
+      "Hand-poured Botanical Sage soy wax candle (8oz)",
+      "Organic artisanal tea blend in decorative tin",
+      "Handcrafted brass desk bell with wooden handle",
+      "Custom branded sleeve & personalized gift note"
+    ]
+  },
+  {
+    "id": "pkg-02",
+    "name": "Premium Corporate Box",
+    "priceStart": "₹4,500+",
+    "image": "/products/corporate_hero_hamper.jpg",
+    "description": "Solid walnut wood keepsake chest featuring a framed scenic artwork, wild raw forest honey, artisanal herbal soap bar, and natural botanical incense sticks.",
+    "contents": [
+      "Signature solid wood chest with brass hardware",
+      "Original framed mountain landscape painting",
+      "Raw single-origin wild honey with wooden dipper",
+      "Lavender & Bergamot cold-processed artisan soap",
+      "Pure botanical incense sticks with ceramic holder"
+    ]
+  },
+  {
+    "id": "pkg-03",
+    "name": "Festive Collection",
+    "priceStart": "₹3,800+",
+    "image": "/products/corporate_festive_box.jpg",
+    "description": "A celebration of light and sweet joy featuring fresh botanicals, brass oil diya lamp, artisanal sweets, and jasmine bergamot candle in an engraved pine box.",
+    "contents": [
+      "Artisan handcrafted brass oil diya lamp",
+      "Box of artisanal silver-leaf sweets & treats",
+      "Jasmine & Bergamot fluted glass candle",
+      "Fresh botanical and eucalyptus styling",
+      "Festive ribbon and customized corporate tag"
+    ]
+  }
+]

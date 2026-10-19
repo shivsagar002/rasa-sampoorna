@@ -1,0 +1,34 @@
+[
+  {
+    "id": "related-01",
+    "name": "Tranquil Thoughts Painting",
+    "category": "Paintings",
+    "price": 8500,
+    "image": "/products/product_tranquil_thoughts.webp",
+    "link": "/shop#paintings"
+  },
+  {
+    "id": "related-02",
+    "name": "Bloom Bag",
+    "category": "Crochet",
+    "price": 2800,
+    "image": "/products/product_bloom_bag.webp",
+    "link": "/shop#crochet"
+  },
+  {
+    "id": "related-03",
+    "name": "Floral Bouquet",
+    "category": "Crochet",
+    "price": 1200,
+    "image": "/products/product_floral_bouquet.webp",
+    "link": "/shop#crochet"
+  },
+  {
+    "id": "related-04",
+    "name": "Lotus Bloom Saree (Blue)",
+    "category": "Sarees",
+    "price": 12500,
+    "image": "/products/saree_ocean_breeze.jpg",
+    "link": "/shop/lotus-bloom-saree"
+  }
+]

@@ -1,0 +1,644 @@
+[
+  {
+    "id": "saree-01",
+    "slug": "lotus-bloom-saree",
+    "name": "Lotus Bloom Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted silk | One of a kind",
+    "price": 12500,
+    "originalPrice": 14000,
+    "rating": 4.9,
+    "reviewCount": 24,
+    "images": [
+      "/products/saree_lotus_main.jpg",
+      "/products/saree_lotus_pallu.jpg",
+      "/products/saree_lotus_macro.jpg",
+      "/products/saree_artisan_craft.jpg"
+    ],
+    "description": "Hand-painted with iconic burgundy delicate lotus motifs. Each piece is uniquely created by our talented artists, blending heritage Indian craft with modern elegance.",
+    "material": "Hand-painted silk",
+    "size": "Free size (6.5m with blouse piece)",
+    "availability": "In Stock",
+    "detailsList": [
+      "100% Pure Mulberry Silk weave with subtle natural sheen",
+      "Individually hand-painted by master artisans using organic mineral pigments",
+      "Includes 80cm unstitched silk blouse piece with matching painted sleeve accents",
+      "Finished with delicate hand-knotted zari tassels along the pallu",
+      "Dry clean only to preserve vibrant hand-painted brushwork"
+    ],
+    "makerNote": "This piece was painted over 14 days by Lakshmi, a senior artisan at HrdyaSara, who discovered her passion for natural botanical motifs after joining our rehabilitation collective. Every stroke directly supports her financial independence.",
+    "shippingNote": "Complimentary insured express delivery across India (3-5 business days). International worldwide shipping available at checkout. 7-day hassle-free exchange.",
+    "isFeatured": true
+  },
+  {
+    "id": "saree-02",
+    "slug": "coral-whispers-saree",
+    "name": "Coral Whispers Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted cotton | One of a kind",
+    "price": 11800,
+    "rating": 4.8,
+    "reviewCount": 18,
+    "images": [
+      "/products/saree_coral_whispers.jpg"
+    ],
+    "description": "Warm peach and coral hues adorned with ethereal floral vines and refined gold zari border work.",
+    "material": "Hand-painted cotton silk",
+    "size": "Free size",
+    "availability": "In Stock",
+    "detailsList": [
+      "Soft breathable chanderi cotton-silk blend",
+      "Hand-painted botanicals in warm sunset tones",
+      "Traditional woven zari border",
+      "Includes 80cm unstitched blouse fabric"
+    ],
+    "makerNote": "Created by Sunita at our rural artisan hub. Inspired by the evening light over Karnataka's countryside.",
+    "shippingNote": "Standard delivery in 5-7 days or Express in 1-2 days. Free delivery above ₹2,000.",
+    "isFeatured": true
+  },
+  {
+    "id": "saree-03",
+    "slug": "sunrise-drape-saree",
+    "name": "Sunrise Drape Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted cotton | One of a kind",
+    "price": 10400,
+    "rating": 4.9,
+    "reviewCount": 15,
+    "images": [
+      "/products/saree_sunrise_drape.jpg"
+    ],
+    "description": "Luminous golden mustard drape painted with freehand birds, branches, and woodland motifs using natural turmeric and earth pigments.",
+    "material": "Hand-painted organic cotton",
+    "size": "Free size",
+    "availability": "In Stock",
+    "detailsList": [
+      "Handspun handwoven organic cotton",
+      "Natural earth pigments and vegetable dyes",
+      "Comfortable all-day drape for special occasions"
+    ],
+    "makerNote": "Painted by Deepa, featuring Kalamkari-inspired bird and floral narrative artwork.",
+    "shippingNote": "Dispatches within 48 hours in eco-friendly handmade box.",
+    "isFeatured": true
+  },
+  {
+    "id": "saree-04",
+    "slug": "meadow-bloom-saree",
+    "name": "Meadow Bloom Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted silk | One of a kind",
+    "price": 13200,
+    "rating": 5.0,
+    "reviewCount": 21,
+    "images": [
+      "/products/saree_meadow_bloom.jpg"
+    ],
+    "description": "Soothing sage green silk featuring delicate field chamomile and wildflower sprigs hand-painted along the borders and pleats.",
+    "material": "Hand-painted Tussar silk",
+    "size": "Free size",
+    "availability": "In Stock",
+    "detailsList": [
+      "Raw textured Tussar silk with rich matte luster",
+      "Hand-painted wildflower garland pattern",
+      "Zari selvedge and contrast selvedge finish"
+    ],
+    "makerNote": "Created with gentle love by our neurodivergent youth artists.",
+    "shippingNote": "Insured express shipping across all pin codes in India.",
+    "isFeatured": true
+  },
+  {
+    "id": "saree-05",
+    "slug": "ocean-breeze-saree",
+    "name": "Ocean Breeze Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted silk | One of a kind",
+    "price": 12800,
+    "rating": 4.9,
+    "reviewCount": 19,
+    "images": [
+      "/products/saree_ocean_breeze.jpg"
+    ],
+    "description": "Vibrant azure and turquoise hand-painted silk capturing flowing oceanic currents and serene water-lily blossoms.",
+    "material": "Hand-painted mulberry silk",
+    "size": "Free size",
+    "availability": "In Stock",
+    "detailsList": [
+      "Featherlight 60g mulberry silk",
+      "Cascading wave and lotus motifs",
+      "Includes matched blouse piece"
+    ],
+    "makerNote": "Hand-painted by Geetha with over 15 years of textile expertise.",
+    "shippingNote": "Ships securely in gift-ready archival box.",
+    "isFeatured": true
+  },
+  {
+    "id": "saree-06",
+    "slug": "blush-petals-saree",
+    "name": "Blush Petals Saree",
+    "category": "Sarees",
+    "tag": "Hand-painted cotton | One of a kind",
+    "price": 9800,
+    "rating": 4.8,
+    "reviewCount": 14,
+    "images": [
+      "/products/saree_blush_petals.jpg"
+    ],
+    "description": "Delicate vintage dusty rose drape with blooming cherry blossom branches hand-painted across the pallu and skirt.",
+    "material": "Hand-painted fine cotton",
+    "size": "Free size",
+    "availability": "In Stock",
+    "detailsList": [
+      "Fine 100s count soft mulmul cotton",
+      "Botanical rose and blossom brushwork",
+      "Gentle hand wash or gentle cycle"
+    ],
+    "makerNote": "Crafted by the women's self-help artisan group in Tumakuru.",
+    "shippingNote": "Dispatches within 2 days with personalized artisan note.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-01",
+    "slug": "tranquil-thoughts-painting",
+    "name": "Tranquil Thoughts Painting",
+    "category": "Paintings",
+    "tag": "Original acrylic on canvas | Framed",
+    "price": 8500,
+    "originalPrice": 9500,
+    "rating": 4.9,
+    "reviewCount": 16,
+    "images": [
+      "/products/product_tranquil_thoughts.webp"
+    ],
+    "description": "An evocative contemporary impressionist painting featuring soothing mineral earth tones and quiet contemplative stillness. Hand-painted by our resident master artist.",
+    "material": "Canvas & Natural Mineral Pigments",
+    "size": "18 x 24 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Hand-painted original acrylic on primed linen canvas",
+      "Framed in sustainable teakwood floating frame",
+      "UV protective archival varnish coating",
+      "Ready to hang with brass mounting hardware",
+      "Certificate of authenticity signed by the artisan included"
+    ],
+    "makerNote": "Painted by Anand, a speech-impaired artist who communicates deep emotional landscapes through fluid brushstrokes and meditative color fields.",
+    "shippingNote": "Carefully packaged in custom wooden crate with bubble wrap. Insured domestic delivery within 4-6 business days.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-02",
+    "slug": "golden-horizon-canvas",
+    "name": "Golden Horizon Canvas",
+    "category": "Paintings",
+    "tag": "Textured oil on canvas | One of a kind",
+    "price": 11200,
+    "originalPrice": 12800,
+    "rating": 5.0,
+    "reviewCount": 12,
+    "images": [
+      "/products/painting_golden_horizon.webp"
+    ],
+    "description": "Warm sunset gold and rich bronze palette celebrating the gentle horizon over rural southern India. Deep impasto texture with 24k gold leaf accents.",
+    "material": "Oil & 24K Gold Leaf on Canvas",
+    "size": "24 x 30 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Heavy impasto textured brushwork with genuine gold leaf highlights",
+      "Belgian linen canvas stretched over kiln-dried hardwood",
+      "Sealed with museum-grade satin varnish",
+      "Includes artist profile and provenance documentation"
+    ],
+    "makerNote": "Created by Meera at our Bangalore art center. Meera finds joyful therapeutic expression in textured dawn and sunset landscapes.",
+    "shippingNote": "Dispatches within 3 business days in heavy-duty art packaging.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-03",
+    "slug": "monsoon-whispers-painting",
+    "name": "Monsoon Whispers Painting",
+    "category": "Paintings",
+    "tag": "Contemporary heritage art | Framed",
+    "price": 14500,
+    "originalPrice": 16000,
+    "rating": 4.9,
+    "reviewCount": 20,
+    "images": [
+      "/products/painting_monsoon_whispers.jpg"
+    ],
+    "description": "A breathtaking narrative artwork depicting serene monsoon showers, floating boat drapes, and lush indigo-teal lotus leaves with delicate golden rain droplets.",
+    "material": "Mineral Pigments & Gold Ink on Canvas",
+    "size": "24 x 36 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Narrative composition inspired by classical monsoon poetry",
+      "Rich lapis lazuli, malachite, and gold dust mineral pigments",
+      "Carved vintage heritage frame included",
+      "Equipped with heavy-duty picture wire for easy wall hanging"
+    ],
+    "makerNote": "Crafted over 18 days by senior artist Ramesh, whose visual storytelling draws inspiration from Karnataka's ancient temple tanks and seasonal rains.",
+    "shippingNote": "Free insured express shipping across India. Custom wooden crating.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-04",
+    "slug": "sacred-earth-tree-of-life",
+    "name": "Sacred Earth Tree of Life",
+    "category": "Paintings",
+    "tag": "Traditional folk-modern fusion | Framed",
+    "price": 13800,
+    "rating": 4.8,
+    "reviewCount": 14,
+    "images": [
+      "/products/painting_sacred_earth.jpg"
+    ],
+    "description": "Warm terracotta and raw sienna masterpiece celebrating the sacred Indian Tree of Life with resting deer, songbirds, and elaborate organic foliage.",
+    "material": "Natural Earth Dyes & Gouache on Canvas",
+    "size": "22 x 28 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Elaborate freehand Tree of Life narrative",
+      "Natural madder root, ochre, and soot pigments",
+      "Custom dark walnut floating frame",
+      "Museum glass with 99% UV protection"
+    ],
+    "makerNote": "Handcrafted by Kavitha, honoring ancestral folklore passed down through generations of tribal artisan cooperatives.",
+    "shippingNote": "Dispatches in 48 hours with insured air courier.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-05",
+    "slug": "lotus-pond-awakening",
+    "name": "Lotus Pond Awakening",
+    "category": "Paintings",
+    "tag": "Luminous oil on canvas | Framed",
+    "price": 15500,
+    "rating": 5.0,
+    "reviewCount": 19,
+    "images": [
+      "/products/painting_lotus_pond.jpg"
+    ],
+    "description": "A glowing golden sunrise illuminates a tranquil sacred lake filled with blossoming pink and white lotuses, reflective rippling waters, and distant mountain silhouettes.",
+    "material": "Fine Oil & Glazes on Linen",
+    "size": "24 x 32 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Multi-layered glazing technique providing radiant luminosity",
+      "Pure archival linen stretched over bespoke timber frame",
+      "Detailed floral anatomy rendered with botanical precision",
+      "Antiqued gold leaf exhibition frame"
+    ],
+    "makerNote": "Painted by Priya during morning meditation sessions at HrdyaSara's open-air studio.",
+    "shippingNote": "Ships in custom archival art box with shock-absorbing foam.",
+    "isFeatured": true
+  },
+  {
+    "id": "painting-06",
+    "slug": "mystic-grove-twilight",
+    "name": "Mystic Grove at Twilight",
+    "category": "Paintings",
+    "tag": "Fine art landscape | Gallery edition",
+    "price": 16800,
+    "originalPrice": 18500,
+    "rating": 4.9,
+    "reviewCount": 22,
+    "images": [
+      "/products/painting_mystic_grove.jpg"
+    ],
+    "description": "An ethereal twilight woodland illuminated by dancing fireflies and a crescent moon, featuring ancient banyan tree roots, bamboo groves, and soft emerald mist.",
+    "material": "Acrylic, Gold Foil & Luminous Medium",
+    "size": "26 x 36 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Glow-infused mineral pigments that shimmer subtly in low light",
+      "Intricate aerial roots and mossy foliage texture",
+      "Ornate baroque-style vintage gold frame",
+      "Certified one-of-a-kind original artwork"
+    ],
+    "makerNote": "Created by Devendra, exploring the deep peace and biodiversity of sacred groves in the Western Ghats.",
+    "shippingNote": "Insured doorstep delivery with white-glove packaging.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-01",
+    "slug": "bloom-bag-crochet",
+    "name": "Bloom Bag",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | 100% Cotton",
+    "price": 2800,
+    "originalPrice": 3200,
+    "rating": 4.8,
+    "reviewCount": 27,
+    "images": [
+      "/products/product_bloom_bag.webp"
+    ],
+    "description": "Delicate hand-crocheted handbag featuring structured floral knit patterns and sturdy reinforced handles for daily elegance.",
+    "material": "100% Mercerized Cotton Yarn",
+    "size": "12 x 10 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Hand-crocheted stitch-by-stitch by women artisans",
+      "Double-layered base for durability and shape retention",
+      "Soft cotton interior lining with small slip pocket",
+      "Machine washable on delicate cycle in laundry bag"
+    ],
+    "makerNote": "Crocheted by Fatima, a self-help group leader who has trained over 20 young women in heritage lacework.",
+    "shippingNote": "Ships within 24-48 hours in biodegradable cotton dust bag.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-02",
+    "slug": "floral-bouquet-crochet",
+    "name": "Forever Floral Bouquet",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | Everlasting blooms",
+    "price": 1200,
+    "rating": 4.9,
+    "reviewCount": 35,
+    "images": [
+      "/products/product_floral_bouquet.webp"
+    ],
+    "description": "An everlasting handcrafted bouquet of tulips, daisies, and lavender sprigs carefully crocheted in vibrant pastel tones that never fade.",
+    "material": "100% Organic Cotton Yarn",
+    "size": "14 inches height",
+    "availability": "In Stock",
+    "detailsList": [
+      "Handcrafted bouquet containing 7 individual floral stems",
+      "Bendable wire core in each stem for custom vase arrangement",
+      "Dust-resistant premium combed cotton",
+      "Eco-friendly everlasting alternative to cut flowers"
+    ],
+    "makerNote": "Made with warmth and care by our neurodivergent youth artisans.",
+    "shippingNote": "Dispatches safely wrapped in craft paper and protective box.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-03",
+    "slug": "sunflower-coaster-set",
+    "name": "Sunflower Coaster Set of 4",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | Table decor",
+    "price": 850,
+    "rating": 4.8,
+    "reviewCount": 18,
+    "images": [
+      "/products/crochet_sunflower_coasters.webp"
+    ],
+    "description": "Charming set of four sunny sunflower coasters hand-crocheted with rich golden-yellow petals and warm cocoa centers to brighten your coffee table.",
+    "material": "100% Natural Cotton Yarn",
+    "size": "5 inches diameter each",
+    "availability": "In Stock",
+    "detailsList": [
+      "Set of 4 absorbent handcrafted coasters",
+      "Heat resistant up to 100°C for hot mugs and teapots",
+      "Washable, durable, and fade-resistant dyes",
+      "Tied with jute twine and personalized gift tag"
+    ],
+    "makerNote": "Crocheted by Rajeshwari, bringing sunshine into homes while supporting her family's healthcare fund.",
+    "shippingNote": "Fast dispatches in 24 hours.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-04",
+    "slug": "daisy-granny-square-tote",
+    "name": "Daisy Granny Square Tote",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | Vintage floral",
+    "price": 3400,
+    "originalPrice": 3800,
+    "rating": 5.0,
+    "reviewCount": 31,
+    "images": [
+      "/products/crochet_daisy_tote.jpg"
+    ],
+    "description": "Vintage-inspired cream and buttercup yellow daisy granny square tote bag with hand-braided straps and spacious boho silhouette.",
+    "material": "100% Organic Combed Cotton",
+    "size": "15 x 16 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Composed of 13 individually hand-crocheted granny squares",
+      "Reinforced double-crochet shoulder straps",
+      "Organic unbleached muslin lining with zipper pocket",
+      "Comfortably holds a 13-inch laptop, book, and daily essentials"
+    ],
+    "makerNote": "Crafted by the artisan sisters Ananya and Shilpa in rural Tumakuru.",
+    "shippingNote": "Dispatches in 2 business days in reusable linen pouch.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-05",
+    "slug": "lavender-blossom-arrangement",
+    "name": "Lavender Blossom Arrangement",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | Botanical decor",
+    "price": 1650,
+    "rating": 4.9,
+    "reviewCount": 22,
+    "images": [
+      "/products/crochet_lavender_stems.jpg"
+    ],
+    "description": "Serene arrangement of hand-crocheted lavender stalks, chamomile daisies, and forget-me-nots, styled in a handcrafted ceramic vase.",
+    "material": "Cotton Yarn & Ceramic Vase",
+    "size": "12 inches tall with vase",
+    "availability": "In Stock",
+    "detailsList": [
+      "Includes 9 floral stems plus handcrafted ceramic vase",
+      "Realistic botanical detailing and soothing lavender purple tones",
+      "Zero watering, everlasting beauty",
+      "Treated with organic natural lavender essential oil scent"
+    ],
+    "makerNote": "Hand-knitted by senior women artisans as part of our geriatric cognitive stimulation circle.",
+    "shippingNote": "Ships with bubble protection for the ceramic vase.",
+    "isFeatured": true
+  },
+  {
+    "id": "crochet-06",
+    "slug": "heritage-lace-shawl",
+    "name": "Heritage Crochet Lace Shawl",
+    "category": "Crochet",
+    "tag": "Handcrafted crochet | Luxury wool",
+    "price": 4600,
+    "originalPrice": 5200,
+    "rating": 5.0,
+    "reviewCount": 17,
+    "images": [
+      "/products/crochet_heritage_shawl.jpg"
+    ],
+    "description": "Intricately patterned cream ivory triangular shawl with openwork floral lace motifs and hand-knotted tassel fringe. Cozy, lightweight, and heirloom quality.",
+    "material": "Fine Merino Wool & Bamboo Silk",
+    "size": "68 x 34 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Over 40 hours of meticulous hand-crochet work per piece",
+      "Ultra-soft non-scratchy fine merino blend",
+      "Elegant floral tassel border",
+      "Dry clean or hand wash gently in cold water"
+    ],
+    "makerNote": "Masterwork by Kamalam, a 62-year-old crochet maestro preserving vintage Victorian-Indian lace patterns.",
+    "shippingNote": "Dispatches in gift-ready archival box with fragrant neem leaves.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-01",
+    "slug": "art-craft-keepsake-box",
+    "name": "Art & Craft Keepsake Box",
+    "category": "Hampers",
+    "tag": "Curated artisan gift | Handcrafted",
+    "price": 2500,
+    "originalPrice": 2800,
+    "rating": 4.9,
+    "reviewCount": 29,
+    "images": [
+      "/products/corporate_hamper_craft.jpg"
+    ],
+    "description": "A handcrafted wooden keepsake box containing an original framed miniature painting, hand-poured soy candle, organic tea tin, and brass keepsake bell.",
+    "material": "Teak Wood, Brass, Organic Soy",
+    "size": "10 x 8 x 4 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Framed original miniature artwork by neurodivergent artist",
+      "Hand-poured Botanical Sage soy wax candle (8oz)",
+      "Organic artisanal tea blend in decorative tin",
+      "Handcrafted brass desk bell with wooden handle",
+      "Custom branded sleeve & personalized gift note"
+    ],
+    "makerNote": "Assembled by our vocational training students with 100% fair trade components.",
+    "shippingNote": "Express pan-India delivery with custom corporate sleeve available.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-02",
+    "slug": "premium-solid-walnut-chest",
+    "name": "Premium Solid Walnut Hamper",
+    "category": "Hampers",
+    "tag": "Executive luxury | Solid wood",
+    "price": 4500,
+    "originalPrice": 5000,
+    "rating": 5.0,
+    "reviewCount": 24,
+    "images": [
+      "/products/corporate_hero_hamper.jpg"
+    ],
+    "description": "Solid walnut wood keepsake chest featuring an original framed scenic artwork, wild raw forest honey, artisanal herbal soap bar, and natural botanical incense sticks.",
+    "material": "Solid Walnut, Pure Brass, Raw Honey",
+    "size": "12 x 10 x 5 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Signature solid wood chest with brass hardware",
+      "Original framed mountain landscape painting",
+      "Raw single-origin wild honey with wooden dipper",
+      "Lavender & Bergamot cold-processed artisan soap",
+      "Pure botanical incense sticks with ceramic holder"
+    ],
+    "makerNote": "Curated for executive gifts, directly empowering four distinct artisan micro-enterprises.",
+    "shippingNote": "Insured priority delivery in reinforced luxury shipping carton.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-03",
+    "slug": "festive-radiance-collection",
+    "name": "Festive Radiance Collection",
+    "category": "Hampers",
+    "tag": "Festive celebration | Brass & sweets",
+    "price": 3800,
+    "rating": 4.9,
+    "reviewCount": 19,
+    "images": [
+      "/products/corporate_festive_box.jpg"
+    ],
+    "description": "A celebration of light and sweet joy featuring fresh botanicals, brass oil diya lamp, artisanal sweets, and jasmine bergamot candle in an engraved pine box.",
+    "material": "Brass, Pine Wood, Plant Wax",
+    "size": "11 x 9 x 4.5 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Artisan handcrafted brass oil diya lamp",
+      "Box of artisanal silver-leaf sweets & treats",
+      "Jasmine & Bergamot fluted glass candle",
+      "Fresh botanical and eucalyptus styling",
+      "Festive ribbon and customized gift tag"
+    ],
+    "makerNote": "Handcrafted during festive artisan workshops in Mysore and Bengaluru.",
+    "shippingNote": "Ships with temperature-controlled freshness guarantee for sweets.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-04",
+    "slug": "artisan-wellness-gift-hamper",
+    "name": "Artisan Wellness Gift Hamper",
+    "category": "Hampers",
+    "tag": "Holistic wellness | Handmade spa",
+    "price": 3200,
+    "originalPrice": 3600,
+    "rating": 4.8,
+    "reviewCount": 15,
+    "images": [
+      "/products/hamper_artisan_wellness.png"
+    ],
+    "description": "A nourishing self-care hamper packed with botanical body oils, hand-poured sandalwood soy candle, organic herbal bath salts, and soft handloom face towel.",
+    "material": "Handloom Cotton, Botanical Oils, Ceramic",
+    "size": "10 x 10 x 4 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Pure cold-pressed Kumkumadi face and body oil",
+      "Hand-carved wooden massage comb",
+      "Organic Himalayan pink bath salts with rose petals",
+      "Sandalwood and Vetiver scented beeswax candle",
+      "Handwoven organic cotton waffle washcloth"
+    ],
+    "makerNote": "Crafted in partnership with indigenous forest honey and botanical cooperatives.",
+    "shippingNote": "Dispatches in 24 hours in sealed eco-friendly packaging.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-05",
+    "slug": "heritage-celebration-box",
+    "name": "Heritage Celebration Box",
+    "category": "Hampers",
+    "tag": "Traditional luxury | Hand-painted",
+    "price": 4200,
+    "rating": 4.9,
+    "reviewCount": 21,
+    "images": [
+      "/products/hamper_heritage_celebration.png"
+    ],
+    "description": "An ornate gift box containing a hand-painted Kalamkari table runner, pair of brass peacock incense burners, artisanal spiced tea, and hand-rolled sweets.",
+    "material": "Hand-painted Silk, Brass, Artisanal Tea",
+    "size": "13 x 10 x 4.5 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Hand-painted Kalamkari pure silk table runner (48x12 in)",
+      "Set of two handcrafted brass peacock incense holders",
+      "First-flush Darjeeling organic spiced tea in brass canister",
+      "Assorted artisanal nut brittle and dried fruit confections",
+      "Keepsake magnetic closure presentation box with foil stamping"
+    ],
+    "makerNote": "Direct collaboration between Kalamkari painters and brass smiths from Udupi.",
+    "shippingNote": "Express insured shipping across all pin codes in India.",
+    "isFeatured": true
+  },
+  {
+    "id": "hamper-06",
+    "slug": "botanical-serenity-keepsake",
+    "name": "Botanical Serenity Keepsake",
+    "category": "Hampers",
+    "tag": "Eco luxury | Sustainable craft",
+    "price": 2900,
+    "rating": 5.0,
+    "reviewCount": 18,
+    "images": [
+      "/products/hamper_botanical_serenity.png"
+    ],
+    "description": "Eco-conscious gift set featuring a potted miniature succulent in a hand-painted ceramic planter, wildflower seed paper notepad, brass bookmark, and organic chamomile tea.",
+    "material": "Ceramic, Seed Paper, Solid Brass",
+    "size": "9 x 9 x 4 inches",
+    "availability": "In Stock",
+    "detailsList": [
+      "Hand-painted ceramic planter with drainage tray",
+      "Wildflower plantable seed paper notebook (80 pages)",
+      "Hand-etched botanical brass feather bookmark",
+      "Organic loose-leaf chamomile and lavender herbal tisane",
+      "Biodegradable pine wood box with sliding lid"
+    ],
+    "makerNote": "Created by youth with learning disabilities at our vocational green workshop.",
+    "shippingNote": "Shipped with live plant safety packaging guarantee.",
+    "isFeatured": true
+  }
+]
