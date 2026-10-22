@@ -8,29 +8,70 @@ import { MobileBottomBar } from "@/components/navigation/mobile-bottom-bar";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { useShop } from "@/context/shop-context";
 
-export default function CartAndCheckoutPage() {
-  const { cart, updateQuantity, removeFromCart, clearCart, subtotal } = useShop();
+interface PlacedOrderDetails {
+  orderId: string;
+  orderNumber: string;
+  totalAmount: number;
+  recipientName: string;
+  paymentMethod: string;
+  accessToken?: string;
+}
 
-  const [deliveryOption, setDeliveryOption] = useState<"standard" | "express">(
-    "standard"
-  );
+export default function CartAndCheckoutPage() {
+  const {
+    cart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    subtotal,
+    shippingFee,
+    discountAmount,
+    total,
+    appliedCoupon,
+    couponError,
+    applyCoupon,
+    removeCoupon,
+    hasStockIssue,
+    isLoading: isCartLoading,
+    guestToken,
+    serverCartId,
+  } = useShop();
+
+  const [deliveryOption, setDeliveryOption] = useState<"standard" | "express">("standard");
   const [paymentMethod, setPaymentMethod] = useState<string>("upi");
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isOrderPlaced, setIsOrderPlaced] = useState<boolean>(false);
+  const [placedOrder, setPlacedOrder] = useState<PlacedOrderDetails | null>(null);
 
-  // Address form fields
+  // Coupon form state
+  const [couponInput, setCouponInput] = useState<string>("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState<boolean>(false);
+
+  // Checkout submission & error states
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+
+  // Address form fields - completely empty by default as requested
   const [formData, setFormData] = useState({
-    fullName: "Priya Sharma",
-    phone: "+91 98765 43210",
-    address: "Flat 402, Lotus Residency, Indiranagar",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560038",
-    saveAddress: true,
+    fullName: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    saveAddress: false,
   });
 
-  const shippingCost = deliveryOption === "express" ? 150 : 0;
-  const finalTotal = subtotal + shippingCost;
+  const effectiveShippingCost =
+    deliveryOption === "express"
+      ? 150
+      : appliedCoupon?.freeShipping || subtotal >= 2000
+      ? 0
+      : 150;
+
+  const finalPayableTotal = Math.max(0, subtotal + effectiveShippingCost - discountAmount);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -42,11 +83,257 @@ export default function CartAndCheckoutPage() {
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+    setCheckoutError(null);
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsOrderPlaced(true);
+    if (!couponInput.trim()) return;
+    setIsApplyingCoupon(true);
+    await applyCoupon(couponInput.trim());
+    setIsApplyingCoupon(false);
+  };
+
+  const validateShippingForm = () => {
+    if (!formData.fullName.trim() || formData.fullName.length < 2) {
+      setCheckoutError("Please enter a valid full name.");
+      return false;
+    }
+    const cleanPhone = formData.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setCheckoutError("Please enter a valid 10-digit Indian phone number.");
+      return false;
+    }
+    if (!formData.address.trim() || formData.address.length < 5) {
+      setCheckoutError("Please enter a complete street address.");
+      return false;
+    }
+    if (!formData.city.trim() || !formData.state.trim()) {
+      setCheckoutError("City and state are required.");
+      return false;
+    }
+    if (!/^\d{6}$/.test(formData.pincode.trim())) {
+      setCheckoutError("Please enter a valid 6-digit Indian PIN code.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleProceedToPayment = () => {
+    if (validateShippingForm()) {
+      setCheckoutError(null);
+      setCurrentStep(2);
+    }
+  };
+
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateShippingForm()) {
+      setCurrentStep(1);
+      return;
+    }
+
+    if (cart.length === 0) {
+      setCheckoutError("Your cart is empty. Please add items to your shopping bag before proceeding.");
+      return;
+    }
+
+    if (hasStockIssue) {
+      setCheckoutError("Please update or remove out-of-stock items before placing your order.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setCheckoutError(null);
+    setPaymentNotice(null);
+
+    try {
+      const cleanPhone = formData.phone.replace(/\D/g, "").slice(-10);
+
+      // Pre-sync: guarantee all items in client cart are registered on server
+      for (const item of cart) {
+        await fetch("/api/v1/cart", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(guestToken ? { "x-guest-token": guestToken } : {}),
+          },
+          body: JSON.stringify({
+            productId: item.product?.id || item.id,
+            quantity: item.quantity,
+            selectedSize: item.selectedSize || "Free size",
+          }),
+        }).catch(() => {});
+      }
+
+      // Step 1: Create Order with Server Validation & Stock Hold
+      const orderPayload = {
+        cartId: serverCartId || undefined,
+        shippingAddress: {
+          name: formData.fullName.trim(),
+          phone: cleanPhone,
+          street: formData.address.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postalCode: formData.pincode.trim(),
+          country: "India",
+        },
+        deliveryOption,
+        paymentMethod: paymentMethod === "cod" ? "COD" : "RAZORPAY",
+        couponCode: appliedCoupon?.code,
+        guestEmail: formData.email.trim() || undefined,
+        guestPhone: cleanPhone,
+      };
+
+      const res = await fetch("/api/v1/checkout/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(guestToken ? { "x-guest-token": guestToken } : {}),
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const orderData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(orderData.error?.message || "Failed to create order. Please try again.");
+      }
+
+      const createdOrder = orderData.data;
+
+      // Step 2: Handle Payment
+      if (paymentMethod === "cod") {
+        // Cash on delivery: Verify immediately as confirmed pending delivery
+        const verifyRes = await fetch("/api/v1/checkout/verify-payment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(guestToken ? { "x-guest-token": guestToken } : {}),
+          },
+          body: JSON.stringify({
+            orderId: createdOrder.orderId,
+            razorpayOrderId: createdOrder.razorpayOrderId || `cod_${createdOrder.orderNumber}`,
+            razorpayPaymentId: `pay_cod_${Date.now()}`,
+            razorpaySignature: "cod_signature_verified",
+          }),
+        });
+
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok) {
+          setPlacedOrder({
+            orderId: createdOrder.orderId,
+            orderNumber: createdOrder.orderNumber,
+            totalAmount: createdOrder.totalAmount,
+            recipientName: formData.fullName,
+            paymentMethod: "Cash on Delivery",
+            accessToken: verifyData.data?.accessToken,
+          });
+          setIsOrderPlaced(true);
+          await clearCart();
+          return;
+        } else {
+          throw new Error(verifyData.error?.message || "Order verification could not be completed.");
+        }
+      }
+
+      // Online Payment via Razorpay
+      const isRazorpayReady = await loadRazorpayScript();
+      if (!isRazorpayReady) {
+        throw new Error("Unable to initialize Razorpay payment gateway. Please check your network and try again.");
+      }
+
+      const razorpayKey =
+        createdOrder.razorpayKeyId ||
+        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+        "rzp_live_ShMFxv5n0Pkajj";
+
+      const razorpayOptions = {
+        key: razorpayKey,
+        amount: Math.round(createdOrder.totalAmount * 100),
+        currency: createdOrder.currency || "INR",
+        name: "RASA Sampoorna",
+        description: `Order #${createdOrder.orderNumber} - Artisan Heritage Sarees`,
+        order_id: createdOrder.razorpayOrderId,
+        prefill: {
+          name: formData.fullName,
+          email: formData.email,
+          contact: cleanPhone,
+        },
+        theme: {
+          color: "#802a2a",
+        },
+        handler: async function (paymentResponse: any) {
+          setIsSubmitting(true);
+          try {
+            const verifyRes = await fetch("/api/v1/checkout/verify-payment", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(guestToken ? { "x-guest-token": guestToken } : {}),
+              },
+              body: JSON.stringify({
+                orderId: createdOrder.orderId,
+                razorpayOrderId: paymentResponse.razorpay_order_id || createdOrder.razorpayOrderId,
+                razorpayPaymentId: paymentResponse.razorpay_payment_id,
+                razorpaySignature: paymentResponse.razorpay_signature,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok) {
+              setPlacedOrder({
+                orderId: createdOrder.orderId,
+                orderNumber: createdOrder.orderNumber,
+                totalAmount: createdOrder.totalAmount,
+                recipientName: formData.fullName,
+                paymentMethod: "Razorpay (Online Payment)",
+                accessToken: verifyData.data?.accessToken,
+              });
+              setIsOrderPlaced(true);
+              await clearCart();
+            } else {
+              setPaymentNotice(verifyData.error?.message || "Payment verification failed. Your items remain in your bag.");
+            }
+          } catch (err: any) {
+            setCheckoutError(err.message || "Payment verification encountered an unexpected issue.");
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setIsSubmitting(false);
+            setPaymentNotice("Payment was not completed. Your shopping bag remains preserved.");
+          },
+        },
+      };
+
+      const rzpInstance = new (window as any).Razorpay(razorpayOptions);
+      rzpInstance.on("payment.failed", function (failResponse: any) {
+        setIsSubmitting(false);
+        setCheckoutError(failResponse.error?.description || "Payment failed. Please try a different card or UPI.");
+      });
+      rzpInstance.open();
+    } catch (err: any) {
+      setCheckoutError(err.message || "An error occurred during checkout. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,6 +367,32 @@ export default function CartAndCheckoutPage() {
         >
           Cart &amp; Checkout
         </h1>
+
+        {/* Global Payment Notice / Warning */}
+        {paymentNotice && (
+          <div
+            style={{
+              padding: "14px 18px",
+              backgroundColor: "rgba(217, 83, 79, 0.08)",
+              border: "1px solid rgba(217, 83, 79, 0.3)",
+              borderRadius: "12px",
+              color: "#c0392b",
+              fontSize: "14px",
+              marginBottom: "20px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>{paymentNotice}</span>
+            <button
+              onClick={() => setPaymentNotice(null)}
+              style={{ fontSize: "12px", textDecoration: "underline", color: "#c0392b" }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {cart.length === 0 && !isOrderPlaced ? (
           <div
@@ -174,6 +487,7 @@ export default function CartAndCheckoutPage() {
                         alignItems: "center",
                         paddingBottom: "20px",
                         borderBottom: "1px solid rgba(232, 223, 213, 0.6)",
+                        opacity: item.isOutOfStock ? 0.65 : 1,
                       }}
                     >
                       {/* Item Thumbnail */}
@@ -189,7 +503,7 @@ export default function CartAndCheckoutPage() {
                         }}
                       >
                         <Image
-                          src={item.product.images[0]}
+                          src={item.product.images[0] || "/products/placeholder.webp"}
                           alt={item.product.name}
                           fill
                           sizes="84px"
@@ -216,11 +530,26 @@ export default function CartAndCheckoutPage() {
                           style={{
                             fontSize: "12px",
                             color: "var(--text-muted)",
-                            marginBottom: "8px",
+                            marginBottom: "4px",
                           }}
                         >
                           {item.selectedSize || "Standard size"}
                         </p>
+
+                        {/* Out of stock / Stock warning */}
+                        {item.stockWarning && (
+                          <p
+                            style={{
+                              fontSize: "11px",
+                              color: "#c0392b",
+                              fontWeight: 600,
+                              marginBottom: "6px",
+                            }}
+                          >
+                            ⚠ {item.stockWarning}
+                          </p>
+                        )}
+
                         <span
                           style={{
                             fontSize: "16px",
@@ -245,6 +574,7 @@ export default function CartAndCheckoutPage() {
                       >
                         <button
                           type="button"
+                          disabled={isCartLoading}
                           onClick={() => updateQuantity(item.id, -1)}
                           style={{
                             width: "26px",
@@ -253,6 +583,7 @@ export default function CartAndCheckoutPage() {
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: "14px",
+                            opacity: isCartLoading ? 0.5 : 1,
                           }}
                         >
                           −
@@ -269,6 +600,7 @@ export default function CartAndCheckoutPage() {
                         </span>
                         <button
                           type="button"
+                          disabled={isCartLoading || item.isOutOfStock}
                           onClick={() => updateQuantity(item.id, 1)}
                           style={{
                             width: "26px",
@@ -277,6 +609,7 @@ export default function CartAndCheckoutPage() {
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: "14px",
+                            opacity: isCartLoading || item.isOutOfStock ? 0.5 : 1,
                           }}
                         >
                           +
@@ -343,7 +676,10 @@ export default function CartAndCheckoutPage() {
                         opacity: currentStep >= step.num ? 1 : 0.45,
                         cursor: "pointer",
                       }}
-                      onClick={() => setCurrentStep(step.num)}
+                      onClick={() => {
+                        if (step.num === 1) setCurrentStep(1);
+                        else if (step.num === 2 && validateShippingForm()) setCurrentStep(2);
+                      }}
                     >
                       <div
                         style={{
@@ -376,6 +712,22 @@ export default function CartAndCheckoutPage() {
                     </div>
                   ))}
                 </div>
+
+                {checkoutError && (
+                  <div
+                    style={{
+                      padding: "12px 16px",
+                      backgroundColor: "rgba(217, 83, 79, 0.08)",
+                      border: "1px solid rgba(217, 83, 79, 0.25)",
+                      borderRadius: "8px",
+                      color: "#c0392b",
+                      fontSize: "13px",
+                      marginBottom: "20px",
+                    }}
+                  >
+                    {checkoutError}
+                  </div>
+                )}
 
                 <form onSubmit={handlePlaceOrder}>
                   {/* Step 1: Shipping Address */}
@@ -438,7 +790,7 @@ export default function CartAndCheckoutPage() {
                               marginBottom: "6px",
                             }}
                           >
-                            Phone Number *
+                            Phone Number * (10 digits)
                           </label>
                           <input
                             type="tel"
@@ -446,6 +798,7 @@ export default function CartAndCheckoutPage() {
                             value={formData.phone}
                             onChange={handleInputChange}
                             required
+                            placeholder="e.g. 9876543210"
                             style={{
                               width: "100%",
                               padding: "10px 14px",
@@ -457,6 +810,35 @@ export default function CartAndCheckoutPage() {
                             }}
                           />
                         </div>
+                      </div>
+
+                      <div style={{ marginBottom: "16px" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: "12px",
+                            color: "var(--text-secondary)",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          Email (for order updates)
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: "100%",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-light)",
+                            backgroundColor: "var(--bg-cream)",
+                            fontFamily: "inherit",
+                            fontSize: "14px",
+                          }}
+                        />
                       </div>
 
                       <div style={{ marginBottom: "16px" }}>
@@ -563,11 +945,12 @@ export default function CartAndCheckoutPage() {
                               marginBottom: "6px",
                             }}
                           >
-                            Pincode *
+                            Pincode * (6 digits)
                           </label>
                           <input
                             type="text"
                             name="pincode"
+                            maxLength={6}
                             value={formData.pincode}
                             onChange={handleInputChange}
                             required
@@ -662,8 +1045,16 @@ export default function CartAndCheckoutPage() {
                               </p>
                             </div>
                           </div>
-                          <span style={{ fontWeight: 700, color: "#27ae60" }}>
-                            Free
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color:
+                                appliedCoupon?.freeShipping || subtotal >= 2000
+                                  ? "#27ae60"
+                                  : "var(--text-primary)",
+                            }}
+                          >
+                            {appliedCoupon?.freeShipping || subtotal >= 2000 ? "Free" : "₹150"}
                           </span>
                         </label>
 
@@ -710,7 +1101,7 @@ export default function CartAndCheckoutPage() {
 
                       <button
                         type="button"
-                        onClick={() => setCurrentStep(2)}
+                        onClick={handleProceedToPayment}
                         style={{
                           width: "100%",
                           padding: "14px",
@@ -833,18 +1224,25 @@ export default function CartAndCheckoutPage() {
 
                         <button
                           type="submit"
+                          disabled={isSubmitting || hasStockIssue}
                           style={{
                             flex: 2,
                             padding: "14px",
-                            backgroundColor: "var(--btn-dark)",
+                            backgroundColor:
+                              hasStockIssue || isSubmitting
+                                ? "var(--border-light)"
+                                : "var(--btn-dark)",
                             color: "#f7f4ee",
                             borderRadius: "9999px",
                             fontWeight: 600,
                             fontSize: "15px",
                             boxShadow: "0 6px 18px rgba(46, 56, 48, 0.2)",
+                            cursor: hasStockIssue || isSubmitting ? "not-allowed" : "pointer",
                           }}
                         >
-                          Place Order (₹{finalTotal.toLocaleString("en-IN")})
+                          {isSubmitting
+                            ? "Securing Order..."
+                            : `Place Order (₹${finalPayableTotal.toLocaleString("en-IN")})`}
                         </button>
                       </div>
                     </div>
@@ -853,7 +1251,7 @@ export default function CartAndCheckoutPage() {
               </div>
             </div>
 
-            {/* Right Column: Order Summary */}
+            {/* Right Column: Order Summary & Coupons */}
             <div
               style={{
                 position: "sticky",
@@ -878,6 +1276,100 @@ export default function CartAndCheckoutPage() {
                 Order Summary
               </h2>
 
+              {/* Coupon Form */}
+              <div
+                style={{
+                  marginBottom: "20px",
+                  paddingBottom: "18px",
+                  borderBottom: "1px solid var(--border-light)",
+                }}
+              >
+                {appliedCoupon ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor: "rgba(39, 174, 96, 0.08)",
+                      border: "1px solid rgba(39, 174, 96, 0.3)",
+                      borderRadius: "10px",
+                      padding: "10px 14px",
+                    }}
+                  >
+                    <div>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "13px",
+                          letterSpacing: "0.05em",
+                          color: "#27ae60",
+                        }}
+                      >
+                        ✓ {appliedCoupon.code}
+                      </span>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                        Saved ₹{appliedCoupon.discountAmount.toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      style={{
+                        fontSize: "12px",
+                        color: "#c0392b",
+                        fontWeight: 600,
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon}>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        placeholder="Coupon Code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        style={{
+                          flex: 1,
+                          padding: "10px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--border-light)",
+                          backgroundColor: "var(--bg-cream)",
+                          fontSize: "13px",
+                          letterSpacing: "0.05em",
+                          textTransform: "uppercase",
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isApplyingCoupon || !couponInput.trim()}
+                        style={{
+                          padding: "10px 18px",
+                          backgroundColor: "var(--btn-dark)",
+                          color: "#f7f4ee",
+                          borderRadius: "8px",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          cursor: isApplyingCoupon || !couponInput.trim() ? "not-allowed" : "pointer",
+                          opacity: isApplyingCoupon || !couponInput.trim() ? 0.6 : 1,
+                        }}
+                      >
+                        {isApplyingCoupon ? "..." : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p style={{ color: "#c0392b", fontSize: "12px", marginTop: "6px" }}>
+                        {couponError}
+                      </p>
+                    )}
+                  </form>
+                )}
+              </div>
+
+              {/* Price Breakdown */}
               <div
                 style={{
                   display: "flex",
@@ -891,9 +1383,7 @@ export default function CartAndCheckoutPage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "var(--text-secondary)" }}>Subtotal</span>
-                  <span style={{ fontWeight: 600 }}>
-                    ₹{subtotal.toLocaleString("en-IN")}
-                  </span>
+                  <span style={{ fontWeight: 600 }}>₹{subtotal.toLocaleString("en-IN")}</span>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -901,10 +1391,28 @@ export default function CartAndCheckoutPage() {
                   <span
                     style={{
                       fontWeight: 600,
-                      color: shippingCost === 0 ? "#27ae60" : "var(--text-primary)",
+                      color: effectiveShippingCost === 0 ? "#27ae60" : "var(--text-primary)",
                     }}
                   >
-                    {shippingCost === 0 ? "FREE" : `₹${shippingCost}`}
+                    {effectiveShippingCost === 0 ? "FREE" : `₹${effectiveShippingCost}`}
+                  </span>
+                </div>
+
+                {appliedCoupon && appliedCoupon.discountAmount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#27ae60", fontWeight: 600 }}>
+                      Discount ({appliedCoupon.code})
+                    </span>
+                    <span style={{ color: "#27ae60", fontWeight: 600 }}>
+                      − ₹{appliedCoupon.discountAmount.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Taxes (5% GST)</span>
+                  <span style={{ fontWeight: 500, color: "var(--text-muted)", fontSize: "12px" }}>
+                    Included in item prices
                   </span>
                 </div>
 
@@ -941,20 +1449,25 @@ export default function CartAndCheckoutPage() {
                     color: "var(--text-primary)",
                   }}
                 >
-                  ₹{finalTotal.toLocaleString("en-IN")}
+                  ₹{finalPayableTotal.toLocaleString("en-IN")}
                 </span>
               </div>
 
               <button
                 type="button"
+                disabled={hasStockIssue || isSubmitting}
                 onClick={() => {
-                  if (currentStep === 1) setCurrentStep(2);
-                  else setIsOrderPlaced(true);
+                  if (currentStep === 1) handleProceedToPayment();
+                  else {
+                    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                    handlePlaceOrder(fakeEvent);
+                  }
                 }}
                 style={{
                   width: "100%",
                   padding: "16px",
-                  backgroundColor: "var(--btn-dark, #2e3830)",
+                  backgroundColor:
+                    hasStockIssue || isSubmitting ? "var(--border-light)" : "var(--btn-dark, #2e3830)",
                   color: "#f7f4ee",
                   borderRadius: "9999px",
                   fontWeight: 600,
@@ -963,9 +1476,10 @@ export default function CartAndCheckoutPage() {
                   marginBottom: "16px",
                   display: "block",
                   textAlign: "center",
+                  cursor: hasStockIssue || isSubmitting ? "not-allowed" : "pointer",
                 }}
               >
-                Proceed to Checkout
+                {currentStep === 1 ? "Proceed to Payment" : "Complete Purchase"}
               </button>
 
               <Link
@@ -985,8 +1499,8 @@ export default function CartAndCheckoutPage() {
           </div>
         )}
 
-        {/* Order Placed Success Modal */}
-        {isOrderPlaced && (
+        {/* Real Order Placed Confirmation Modal */}
+        {isOrderPlaced && placedOrder && (
           <div
             style={{
               position: "fixed",
@@ -1049,9 +1563,9 @@ export default function CartAndCheckoutPage() {
                   marginBottom: "20px",
                 }}
               >
-                Your order <strong>#HS-{Math.floor(100000 + Math.random() * 900000)}</strong> has been
-                received with sincere gratitude. Our master artisans are preparing your
-                handcrafted pieces with care.
+                Your order <strong>#{placedOrder.orderNumber}</strong> has been
+                confirmed. Our master artisans are preparing your handcrafted sarees with
+                sincere care.
               </p>
 
               <div
@@ -1068,38 +1582,65 @@ export default function CartAndCheckoutPage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                   <span>Delivering to:</span>
-                  <span style={{ fontWeight: 600 }}>{formData.fullName}</span>
+                  <span style={{ fontWeight: 600 }}>{placedOrder.recipientName}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span>Payment Method:</span>
+                  <span style={{ fontWeight: 600 }}>{placedOrder.paymentMethod}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                   <span>Expected dispatch:</span>
-                  <span style={{ fontWeight: 600 }}>Within 48 Hours</span>
+                  <span style={{ fontWeight: 600 }}>Within 24-48 Hours</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>Amount Paid:</span>
                   <span style={{ fontWeight: 700, color: "var(--btn-dark)" }}>
-                    ₹{finalTotal.toLocaleString("en-IN")}
+                    ₹{placedOrder.totalAmount.toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOrderPlaced(false);
-                  clearCart();
-                }}
-                style={{
-                  width: "100%",
-                  padding: "14px",
-                  backgroundColor: "var(--btn-dark)",
-                  color: "#f7f4ee",
-                  borderRadius: "9999px",
-                  fontWeight: 600,
-                  fontSize: "15px",
-                }}
-              >
-                Return to Shop
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <Link
+                  href={`/orders/${placedOrder.orderId}${placedOrder.accessToken ? `?token=${placedOrder.accessToken}` : ""}`}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "14px",
+                    backgroundColor: "var(--btn-dark)",
+                    color: "#f7f4ee",
+                    borderRadius: "9999px",
+                    fontWeight: 600,
+                    fontSize: "15px",
+                    textAlign: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  Track Order &amp; Tax Invoice &rarr;
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOrderPlaced(false);
+                    setPlacedOrder(null);
+                    clearCart();
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    backgroundColor: "transparent",
+                    border: "1px solid var(--border-light)",
+                    color: "var(--text-secondary)",
+                    borderRadius: "9999px",
+                    fontWeight: 600,
+                    fontSize: "14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Return to Shop
+                </button>
+              </div>
             </div>
           </div>
         )}

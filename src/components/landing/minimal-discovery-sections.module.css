@@ -1,0 +1,387 @@
+/* Minimal Discovery Sections CSS Module */
+.discoveryWrapper {
+  width: 100%;
+  background-color: var(--bg-cream, #f7f4ee);
+  color: var(--text-primary, #2c2621);
+}
+
+.section {
+  padding: 80px 0;
+  border-bottom: 1px solid var(--border-light, #e8dfd5);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.container {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+
+.sectionHeader {
+  margin-bottom: 40px;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.eyebrow {
+  display: block;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-gold, #8c7355);
+  margin-bottom: 8px;
+}
+
+.headline {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--text-primary, #2c2621);
+  margin-bottom: 12px;
+}
+
+.description {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary, #5a4e42);
+  max-width: 560px;
+}
+
+.headerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary, #2c2621);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+  transition: color 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.headerLink:hover {
+  color: var(--accent-gold, #8c7355);
+}
+
+/* 1. Shop by Collection Grid */
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.collectionCard {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-light, #e8dfd5);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.collectionCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(44, 38, 33, 0.08);
+}
+
+.collectionImageFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background-color: var(--bg-card, #faf7f2);
+  overflow: hidden;
+}
+
+.collectionImg {
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.collectionCard:hover .collectionImg {
+  transform: scale(1.04);
+}
+
+.collectionContent {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.collectionTitle {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary, #2c2621);
+  margin-bottom: 4px;
+}
+
+.collectionDesc {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.84rem;
+  color: var(--text-muted, #8c7d70);
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+.collectionLink {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-gold, #8c7355);
+}
+
+/* 2. Featured Products Grid */
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.productCard {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-light, #e8dfd5);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.productCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(44, 38, 33, 0.08);
+}
+
+.productImageFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background-color: var(--bg-card, #faf7f2);
+  overflow: hidden;
+}
+
+.productImg {
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.productCard:hover .productImg {
+  transform: scale(1.04);
+}
+
+.productContent {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.productCategory {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8c7d70);
+  margin-bottom: 4px;
+}
+
+.productTitle {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #2c2621);
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+
+.productPriceRow {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light, #e8dfd5);
+}
+
+.productPrice {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #2c2621);
+}
+
+.productLinkText {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-gold, #8c7355);
+}
+
+/* 3. Corporate Gifting & 4. Maker Story Split Layouts */
+.splitRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+.splitRowReverse {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+.splitImageCol {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border-light, #e8dfd5);
+  background-color: var(--bg-card, #faf7f2);
+}
+
+.splitImg {
+  object-fit: cover;
+}
+
+.splitContentCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.splitText {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.96rem;
+  line-height: 1.65;
+  color: var(--text-secondary, #5a4e42);
+  margin-bottom: 28px;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  padding: 12px 26px;
+  border-radius: 9999px;
+  background-color: var(--btn-dark, #2e3830);
+  color: #f7f4ee;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.ctaButton:hover {
+  background-color: var(--btn-dark-hover, #212923);
+  transform: translateY(-1px);
+}
+
+.ctaLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #2c2621);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 3px;
+  transition: color 0.2s ease;
+}
+
+.ctaLink:hover {
+  color: var(--accent-gold, #8c7355);
+}
+
+/* Responsive Adaptations */
+@media (max-width: 1024px) {
+  .collectionGrid,
+  .productsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .splitRow,
+  .splitRowReverse {
+    gap: 40px;
+  }
+
+  .container {
+    padding: 0 32px;
+  }
+
+  .section {
+    padding: 64px 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .splitRow,
+  .splitRowReverse {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .splitRowReverse .splitImageCol {
+    order: -1;
+  }
+
+  .sectionHeaderRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .container {
+    padding: 0 20px;
+  }
+
+  .section {
+    padding: 56px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .collectionGrid,
+  .productsGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .headline {
+    font-size: 1.85rem;
+  }
+}

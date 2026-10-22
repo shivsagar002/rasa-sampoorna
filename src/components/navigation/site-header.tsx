@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useShop } from "@/context/shop-context";
@@ -56,6 +57,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
 
   return (
     <>
+
       <header
         className={`site-header ${
           isScrolled || solidBackground ? "is-scrolled" : ""
@@ -153,7 +155,8 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
             <Link
               href="/shop"
               aria-label={`Wishlist (${wishlist.length} saved)`}
-              className="action-btn relative"
+              className="action-btn"
+              style={{ position: "relative" }}
               title="Saved to Wishlist"
             >
               <svg
@@ -171,12 +174,13 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
                 <span
                   style={{
                     position: "absolute",
-                    top: "2px",
-                    right: "2px",
-                    width: "8px",
-                    height: "8px",
+                    top: "3px",
+                    right: "3px",
+                    width: "7px",
+                    height: "7px",
                     backgroundColor: "var(--accent-gold, #8c7355)",
                     borderRadius: "50%",
+                    pointerEvents: "none",
                   }}
                 />
               )}
@@ -225,7 +229,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
 
             {/* User Account */}
             <Link
-              href="/contact"
+              href="/account"
               aria-label="User Account"
               className="action-btn"
             >
@@ -324,6 +328,13 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
               onClick={closeMobileMenu}
             >
               Cart ({cartCount})
+            </Link>
+            <Link
+              href="/account"
+              className="mobile-nav-link"
+              onClick={closeMobileMenu}
+            >
+              My Account / Sign In
             </Link>
           </nav>
 

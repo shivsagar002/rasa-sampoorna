@@ -8,10 +8,14 @@ import { MakingProcessSection } from "./making-process-section";
 import { BrandPhilosophySection } from "./brand-philosophy-section";
 import { FinalCtaSection } from "./final-cta-section";
 import { SiteFooter } from "./site-footer";
+import { MinimalDiscoverySections } from "./minimal-discovery-sections";
 
 export function LandingPageContent() {
   return (
     <div className="landing-page-wrapper">
+      {/* MINIMALIST HOMEPAGE SECTIONS: Shop by Collection, Featured Products, Corporate Gifting, Maker Story */}
+      <MinimalDiscoverySections />
+
       {/* SECTION A — EXPLORE OUR COLLECTIONS */}
       <CollectionsSection />
 

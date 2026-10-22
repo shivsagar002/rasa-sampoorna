@@ -63,7 +63,7 @@ export function MobileBottomBar() {
     },
     {
       label: "Account",
-      href: "/contact",
+      href: "/account",
       icon: (
         <svg
           viewBox="0 0 24 24"

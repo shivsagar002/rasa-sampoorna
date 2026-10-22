@@ -10,16 +10,22 @@ export const metadata: Metadata = {
     "Hand-painted pure mulberry silk saree featuring iconic burgundy lotus motifs.",
 };
 
-export default async function PDPPage() {
+async function PDPContent() {
   const products = await getProducts();
   const defaultProduct = products[0] || null;
 
   return (
+    <ProductDetailView
+      slug={defaultProduct?.slug || "lotus-bloom-saree"}
+      initialProduct={defaultProduct}
+    />
+  );
+}
+
+export default function PDPPage() {
+  return (
     <Suspense fallback={<ProductDetailSkeleton />}>
-      <ProductDetailView
-        slug={defaultProduct?.slug || "lotus-bloom-saree"}
-        initialProduct={defaultProduct}
-      />
+      <PDPContent />
     </Suspense>
   );
 }

@@ -12,6 +12,10 @@ import { useShop } from "@/context/shop-context";
 export default function ShopPage() {
   const { toggleWishlist, isInWishlist, addToCart } = useShop();
 
+  // Dynamic products state with static fallback for initial SSR
+  const [allProducts, setAllProducts] = useState<Product[]>(PRODUCTS);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
   // Filter & sorting states
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [maxPrice, setMaxPrice] = useState<number>(20000);
@@ -20,15 +24,63 @@ export default function ShopPage() {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [quickAddedId, setQuickAddedId] = useState<string | null>(null);
 
-  const categoriesList = ["All", "Sarees", "Paintings", "Crochet", "Hampers"];
-  const materialsList = ["Silk", "Cotton", "Wool", "Canvas", "Brass", "Mixed"];
+  // Fetch live products from backend database
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingProducts(true);
+    fetch("/api/v1/products?limit=100")
+      .then((res) => res.json())
+      .then((json) => {
+        if (!isMounted) return;
+        const items = Array.isArray(json.data) ? json.data : json.data?.items;
+        if (Array.isArray(items) && items.length > 0) {
+          setAllProducts((prev) => {
+            const map = new Map<string, Product>();
+            prev.forEach((p) => map.set(p.slug, p));
+            items.forEach((p: any) => {
+              map.set(p.slug, p);
+            });
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoadingProducts(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categoriesList = useMemo(() => {
+    const set = new Set(["All", "Sarees", "Paintings", "Crochet", "Hampers"]);
+    allProducts.forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [allProducts]);
+
+  const materialsList = useMemo(() => {
+    const defaultList = ["Silk", "Cotton", "Wool", "Canvas", "Brass", "Mixed"];
+    const set = new Set(defaultList);
+    allProducts.forEach((p) => {
+      if (p.material) {
+        defaultList.forEach((dm) => {
+          if (p.material.toLowerCase().includes(dm.toLowerCase())) set.add(dm);
+        });
+      }
+    });
+    return Array.from(set);
+  }, [allProducts]);
 
   // Sync category from URL parameter without blocking SSR/prerender
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const cat = params.get("cat");
-      if (cat && ["Sarees", "Paintings", "Crochet", "Hampers"].includes(cat)) {
+      if (cat) {
         setSelectedCategory(cat);
       }
     }
@@ -42,9 +94,25 @@ export default function ShopPage() {
     );
   };
 
-  // Filter logic
+  const handleClearAllFilters = () => {
+    setSelectedCategory("All");
+    setMaxPrice(20000);
+    setSelectedMaterials([]);
+  };
+
+  const hasActiveFilters =
+    selectedCategory !== "All" ||
+    maxPrice < 20000 ||
+    selectedMaterials.length > 0;
+
+  const activeFilterCount =
+    (selectedCategory !== "All" ? 1 : 0) +
+    (maxPrice < 20000 ? 1 : 0) +
+    selectedMaterials.length;
+
+  // Filter logic over allProducts
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((p) => {
+    return allProducts.filter((p) => {
       // Category match
       if (selectedCategory && selectedCategory !== "All" && p.category !== selectedCategory) {
         return false;
@@ -229,7 +297,9 @@ export default function ShopPage() {
                 <line x1="9" y1="8" x2="15" y2="8" />
                 <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
-              <span>Filters</span>
+              <span>
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+              </span>
             </button>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -279,6 +349,48 @@ export default function ShopPage() {
               top: "100px",
             }}
           >
+            {/* Sidebar Header & Clear All Control */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+                paddingBottom: "12px",
+                borderBottom: "1px solid var(--border-light, #e8dfd5)",
+              }}
+            >
+              <span
+                className="font-serif"
+                style={{
+                  fontSize: "17px",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                Filters
+              </span>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: "var(--accent-gold, #8c7355)",
+                    fontWeight: 600,
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
             {/* Category Filter */}
             <div style={{ marginBottom: "28px" }}>
               <h3
@@ -512,6 +624,157 @@ export default function ShopPage() {
 
           {/* Product Grid */}
           <section>
+            {/* Active Filter Indicators */}
+            {hasActiveFilters && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "20px",
+                  padding: "10px 14px",
+                  backgroundColor: "rgba(250, 247, 242, 0.8)",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border-light, #e8dfd5)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--text-muted, #8c7d70)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Active Filters:
+                </span>
+
+                {selectedCategory !== "All" && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "4px 10px",
+                      backgroundColor: "#fff",
+                      border: "1px solid var(--border-light, #e8dfd5)",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      color: "var(--text-primary, #2c2621)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Category: {selectedCategory}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory("All")}
+                      aria-label={`Remove category filter ${selectedCategory}`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-muted)",
+                        fontSize: "14px",
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+
+                {maxPrice < 20000 && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "4px 10px",
+                      backgroundColor: "#fff",
+                      border: "1px solid var(--border-light, #e8dfd5)",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      color: "var(--text-primary, #2c2621)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Up to ₹{maxPrice.toLocaleString("en-IN")}
+                    <button
+                      type="button"
+                      onClick={() => setMaxPrice(20000)}
+                      aria-label="Remove max price filter"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-muted)",
+                        fontSize: "14px",
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+
+                {selectedMaterials.map((mat) => (
+                  <span
+                    key={mat}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "4px 10px",
+                      backgroundColor: "#fff",
+                      border: "1px solid var(--border-light, #e8dfd5)",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      color: "var(--text-primary, #2c2621)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {mat}
+                    <button
+                      type="button"
+                      onClick={() => handleMaterialToggle(mat)}
+                      aria-label={`Remove material filter ${mat}`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-muted)",
+                        fontSize: "14px",
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: "var(--accent-gold, #8c7355)",
+                    fontWeight: 600,
+                    textDecoration: "underline",
+                    marginLeft: "auto",
+                    padding: "4px 6px",
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+
             {filteredProducts.length === 0 ? (
               <div
                 style={{
@@ -522,26 +785,25 @@ export default function ShopPage() {
                   border: "1px solid var(--border-light)",
                 }}
               >
-                <p className="font-serif" style={{ fontSize: "22px" }}>
+                <p className="font-serif" style={{ fontSize: "22px", color: "var(--text-primary)", marginBottom: "8px" }}>
                   No creations match your selected filters.
+                </p>
+                <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "20px" }}>
+                  Try adjusting or clearing your filters to see more pieces.
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory("Sarees");
-                    setMaxPrice(15000);
-                    setSelectedMaterials([]);
-                  }}
+                  onClick={handleClearAllFilters}
                   style={{
-                    marginTop: "16px",
-                    padding: "10px 20px",
+                    padding: "10px 24px",
                     backgroundColor: "var(--btn-dark)",
                     color: "#f7f4ee",
                     borderRadius: "9999px",
                     fontSize: "14px",
+                    fontWeight: 500,
                   }}
                 >
-                  Reset Filters
+                  Clear All Filters
                 </button>
               </div>
             ) : (
@@ -827,7 +1089,7 @@ export default function ShopPage() {
               <input
                 type="range"
                 min="0"
-                max="15000"
+                max="20000"
                 step="500"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(Number(e.target.value))}
@@ -835,15 +1097,48 @@ export default function ShopPage() {
               />
             </div>
 
+            {/* Mobile Material */}
+            <div style={{ marginBottom: "20px" }}>
+              <p
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                  marginBottom: "8px",
+                }}
+              >
+                Material
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {materialsList.map((mat) => {
+                  const isSelected = selectedMaterials.includes(mat);
+                  return (
+                    <button
+                      key={mat}
+                      type="button"
+                      onClick={() => handleMaterialToggle(mat)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "9999px",
+                        fontSize: "14px",
+                        backgroundColor: isSelected ? "var(--btn-dark)" : "#fff",
+                        color: isSelected ? "#f7f4ee" : "var(--text-primary)",
+                        border: "1px solid var(--border-light)",
+                      }}
+                    >
+                      {mat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Action buttons */}
             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedCategory("Sarees");
-                  setMaxPrice(15000);
-                  setSelectedMaterials([]);
-                }}
+                onClick={handleClearAllFilters}
                 style={{
                   flex: 1,
                   padding: "12px",

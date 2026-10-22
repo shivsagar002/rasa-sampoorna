@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -31,6 +31,8 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
   const [quantity, setQuantity] = useState(1);
   const [activeAccordion, setActiveAccordion] = useState<string | null>("details");
   const [isAddedFeedback, setIsAddedFeedback] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const buyBoxRef = useRef<HTMLDivElement>(null);
 
   const isWishlisted = isInWishlist(product.id);
 
@@ -43,6 +45,28 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
   const toggleAccordion = (key: string) => {
     setActiveAccordion(activeAccordion === key ? null : key);
   };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window === "undefined") return;
+      if (window.innerWidth > 768) {
+        if (showStickyBar) setShowStickyBar(false);
+        return;
+      }
+      if (!buyBoxRef.current) return;
+      const rect = buyBoxRef.current.getBoundingClientRect();
+      setShowStickyBar(rect.bottom < 0);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [showStickyBar]);
 
   return (
     <div
@@ -193,7 +217,16 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
                   gap: "6px",
                 }}
               >
-                <span>🌿</span> 100% Hand-Painted Heritage Craft
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    backgroundColor: "#27ae60",
+                    display: "inline-block",
+                  }}
+                />
+                100% Handcrafted Heritage Art
               </div>
             </div>
           </div>
@@ -352,7 +385,7 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
                     color: "var(--text-primary)",
                   }}
                 >
-                  Free size
+                  {product.size || "Free size"}
                 </span>
               </div>
 
@@ -383,11 +416,12 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
 
             {/* Quantity Selector + Add to Cart + Wishlist */}
             <div
+              ref={buyBoxRef}
               style={{
                 display: "flex",
                 gap: "12px",
                 alignItems: "center",
-                marginBottom: "28px",
+                marginBottom: isAddedFeedback ? "12px" : "28px",
               }}
             >
               {/* Stepper */}
@@ -527,6 +561,42 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
               </button>
             </div>
 
+            {/* Validation Feedback Banner */}
+            {isAddedFeedback && (
+              <div
+                role="status"
+                aria-live="polite"
+                style={{
+                  marginBottom: "24px",
+                  padding: "10px 16px",
+                  backgroundColor: "#f2f8f4",
+                  border: "1px solid #cce5d4",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  color: "#1e5c2b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                }}
+              >
+                <span>
+                  Added {quantity} × {product.name} to your cart.
+                </span>
+                <Link
+                  href="/cart"
+                  style={{
+                    fontWeight: 600,
+                    color: "#1e5c2b",
+                    textDecoration: "underline",
+                    flexShrink: 0,
+                  }}
+                >
+                  View Cart →
+                </Link>
+              </div>
+            )}
+
             {/* Perks Row (Free shipping, Easy Returns, Secure Payments) */}
             <div
               style={{
@@ -543,15 +613,44 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>🚚</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  style={{ width: "15px", height: "15px" }}
+                >
+                  <rect x="1" y="3" width="15" height="13" rx="1" />
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
                 <span>Free Shipping</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>↺</span>
-                <span>Easy Returns</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  style={{ width: "15px", height: "15px" }}
+                >
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+                <span>7-Day Replacement</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>🔒</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  style={{ width: "15px", height: "15px" }}
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
                 <span>Secure Payments</span>
               </div>
             </div>
@@ -598,6 +697,67 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
                       color: "var(--text-secondary)",
                     }}
                   >
+                    {/* Material & Dimensions Specifications Card */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "12px",
+                        marginBottom: "16px",
+                        padding: "12px 16px",
+                        backgroundColor: "#fff",
+                        border: "1px solid var(--border-light, #e8dfd5)",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "11px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            color: "var(--text-muted)",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          Material &amp; Craft
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {product.material}
+                        </span>
+                      </div>
+                      <div>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "11px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            color: "var(--text-muted)",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          Dimensions / Size
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {product.size}
+                        </span>
+                      </div>
+                    </div>
+
                     <ul
                       style={{
                         paddingLeft: "20px",
@@ -655,6 +815,20 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
                       100% of proceeds fund art therapy, assistive tools, and fair
                       wages for our artisan collective.
                     </p>
+                    <div style={{ marginTop: "12px" }}>
+                      <Link
+                        href="/contact"
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          textDecoration: "underline",
+                          textUnderlineOffset: "3px",
+                        }}
+                      >
+                        Learn more about our artisan collective and workshop →
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
@@ -693,17 +867,39 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
                       color: "var(--text-secondary)",
                     }}
                   >
-                    <p>{product.shippingNote}</p>
-                    <p style={{ marginTop: "8px", fontSize: "13px" }}>
-                      Each creation is carefully inspected, packed, and packaged in
-                      sustainable unbleached cotton and mulberry paper before dispatch.
-                    </p>
-                    <div style={{ marginTop: "12px", display: "flex", gap: "16px", fontSize: "13px" }}>
-                      <Link href="/shipping-policy" style={{ color: "var(--accent-gold)", textDecoration: "underline" }}>
-                        Shipping Policy →
+                    <p style={{ marginBottom: "12px" }}>{product.shippingNote}</p>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        padding: "12px 14px",
+                        backgroundColor: "#fff",
+                        border: "1px solid var(--border-light, #e8dfd5)",
+                        borderRadius: "8px",
+                        marginBottom: "12px",
+                        fontSize: "13px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      <div>
+                        <strong>Dispatch:</strong> Ready pieces are dispatched within 2–4 business days. Custom and made-to-order creations require 10–18 business days.
+                      </div>
+                      <div>
+                        <strong>Delivery:</strong> Complimentary standard shipping across India on orders above ₹1,999.
+                      </div>
+                      <div>
+                        <strong>Transit Guarantee:</strong> If damaged in transit, report within 7 days of delivery for a free doorstep courier pickup and your choice of replacement or full refund.
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "16px", fontSize: "13px" }}>
+                      <Link href="/shipping-policy" style={{ color: "var(--accent-gold)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                        Full Shipping Policy →
                       </Link>
-                      <Link href="/refund-policy" style={{ color: "var(--accent-gold)", textDecoration: "underline" }}>
-                        Return &amp; Refund Policy →
+                      <Link href="/refund-policy" style={{ color: "var(--accent-gold)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                        Full Return &amp; Refund Policy →
                       </Link>
                     </div>
                   </div>
@@ -818,6 +1014,111 @@ export function ProductDetailView({ slug: propSlug, initialProduct }: ProductDet
       </main>
 
       <SiteFooter />
+
+      {/* Mobile Sticky Add to Cart Bar (Visible on mobile only when main buy box is scrolled out of view) */}
+      {showStickyBar && (
+        <aside
+          aria-label="Quick Add to Cart Bar"
+          style={{
+            position: "fixed",
+            bottom: "58px",
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            backgroundColor: "rgba(255, 255, 255, 0.98)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            borderTop: "1px solid var(--border-light, #e8dfd5)",
+            boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.08)",
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                width: "42px",
+                height: "42px",
+                borderRadius: "8px",
+                overflow: "hidden",
+                flexShrink: 0,
+                border: "1px solid var(--border-light, #e8dfd5)",
+                backgroundColor: "#f5f0e8",
+              }}
+            >
+              <Image
+                src={product.images[0]}
+                alt={product.name}
+                fill
+                sizes="42px"
+                style={{ objectFit: "cover" }}
+              />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div
+                className="font-serif"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {product.name}
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                }}
+              >
+                ₹{product.price.toLocaleString("en-IN")}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            style={{
+              padding: "10px 18px",
+              backgroundColor: isAddedFeedback
+                ? "var(--accent-gold, #8c7355)"
+                : "var(--btn-dark, #2e3830)",
+              color: "#f7f4ee",
+              fontSize: "13px",
+              fontWeight: 600,
+              borderRadius: "9999px",
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            {isAddedFeedback ? "Added" : "Add to Cart"}
+          </button>
+        </aside>
+      )}
+
       <MobileBottomBar />
     </div>
   );

@@ -205,6 +205,7 @@ export default function FAQPage() {
           >
             <input
               type="text"
+              aria-label="Search frequently asked questions"
               placeholder="Search for answers (e.g. shipping, returns, fabric)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -216,15 +217,17 @@ export default function FAQPage() {
                 backgroundColor: "#fff",
                 fontFamily: "inherit",
                 fontSize: "14px",
-                outline: "none",
                 boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
+                minHeight: "44px",
               }}
+              className="transition-all focus:outline-none focus:ring-2 focus:ring-[#8c7355]/30 focus:border-[#8c7355]"
             />
             <svg
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth="1.8"
               fill="none"
+              aria-hidden="true"
               style={{
                 position: "absolute",
                 left: "18px",
@@ -233,6 +236,7 @@ export default function FAQPage() {
                 width: "18px",
                 height: "18px",
                 color: "var(--text-muted)",
+                pointerEvents: "none",
               }}
             >
               <circle cx="11" cy="11" r="8" />
@@ -241,15 +245,24 @@ export default function FAQPage() {
             {searchQuery && (
               <button
                 type="button"
+                aria-label="Clear search"
                 onClick={() => setSearchQuery("")}
                 style={{
                   position: "absolute",
-                  right: "16px",
+                  right: "14px",
                   top: "50%",
                   transform: "translateY(-50%)",
+                  width: "28px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
                   fontSize: "14px",
                   color: "var(--text-muted)",
+                  cursor: "pointer",
                 }}
+                className="hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-[#8c7355]"
               >
                 ✕
               </button>
@@ -364,6 +377,7 @@ export default function FAQPage() {
                   <button
                     key={cat}
                     type="button"
+                    aria-pressed={activeCategory === cat}
                     onClick={() => {
                       setActiveCategory(cat);
                       setActiveQuestion(0);
@@ -384,7 +398,9 @@ export default function FAQPage() {
                           ? "#f7f4ee"
                           : "var(--text-primary, #2c2621)",
                       transition: "all 0.2s ease",
+                      cursor: "pointer",
                     }}
+                    className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8c7355]"
                   >
                     {cat}
                   </button>
@@ -401,12 +417,14 @@ export default function FAQPage() {
                 gap: "8px",
                 paddingBottom: "12px",
                 marginBottom: "20px",
+                WebkitOverflowScrolling: "touch",
               }}
             >
               {categories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
+                  aria-pressed={activeCategory === cat}
                   onClick={() => {
                     setActiveCategory(cat);
                     setActiveQuestion(0);
@@ -421,7 +439,9 @@ export default function FAQPage() {
                       activeCategory === cat ? "var(--btn-dark)" : "#fff",
                     color: activeCategory === cat ? "#f7f4ee" : "var(--text-primary)",
                     border: "1px solid var(--border-light)",
+                    cursor: "pointer",
                   }}
+                  className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8c7355]"
                 >
                   {cat}
                 </button>
@@ -433,7 +453,7 @@ export default function FAQPage() {
               style={{
                 backgroundColor: "#fff",
                 borderRadius: "20px",
-                padding: "32px 36px",
+                padding: "clamp(20px, 4vw, 36px)",
                 border: "1px solid var(--border-light, #e8dfd5)",
                 boxShadow: "0 6px 24px rgba(0,0,0,0.03)",
               }}
@@ -468,6 +488,9 @@ export default function FAQPage() {
                       onClick={() =>
                         setActiveQuestion(activeQuestion === idx ? null : idx)
                       }
+                      aria-expanded={activeQuestion === idx}
+                      aria-controls={`faq-answer-${idx}`}
+                      id={`faq-btn-${idx}`}
                       style={{
                         width: "100%",
                         display: "flex",
@@ -480,9 +503,11 @@ export default function FAQPage() {
                         color: "var(--text-primary)",
                         cursor: "pointer",
                       }}
+                      className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8c7355] rounded-xs"
                     >
                       <span style={{ paddingRight: "16px" }}>{item.q}</span>
                       <span
+                        aria-hidden="true"
                         style={{
                           fontSize: "20px",
                           color: "var(--text-muted)",
@@ -494,16 +519,22 @@ export default function FAQPage() {
                     </button>
 
                     {activeQuestion === idx && (
-                      <p
-                        style={{
-                          fontSize: "14px",
-                          lineHeight: 1.7,
-                          color: "var(--text-secondary)",
-                          paddingBottom: "20px",
-                        }}
+                      <div
+                        id={`faq-answer-${idx}`}
+                        role="region"
+                        aria-labelledby={`faq-btn-${idx}`}
                       >
-                        {item.a}
-                      </p>
+                        <p
+                          style={{
+                            fontSize: "14px",
+                            lineHeight: 1.7,
+                            color: "var(--text-secondary)",
+                            paddingBottom: "20px",
+                          }}
+                        >
+                          {item.a}
+                        </p>
+                      </div>
                     )}
                   </div>
                 ))}

@@ -26,7 +26,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
+import { Suspense } from "react";
 import { ShopProvider } from "@/context/shop-context";
+import { PromoOfferPopup } from "@/components/navigation/promo-offer-popup";
 
 export default function RootLayout({
   children,
@@ -36,7 +38,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <ShopProvider>{children}</ShopProvider>
+        <ShopProvider>
+          <Suspense fallback={null}>
+            <PromoOfferPopup />
+          </Suspense>
+          {children}
+        </ShopProvider>
       </body>
     </html>
   );

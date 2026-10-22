@@ -94,6 +94,7 @@ export function SiteFooter() {
               <li><Link href="/faq" className="footer-link">FAQs</Link></li>
               <li><Link href="/contact" className="footer-link">Contact Us</Link></li>
               <li><Link href="/cart" className="footer-link">Your Cart</Link></li>
+              <li><Link href="/account" className="footer-link">My Account / Sign In</Link></li>
             </ul>
           </div>
 
