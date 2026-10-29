@@ -155,6 +155,17 @@ export class RbacService {
     const actorWeight = ROLE_HIERARCHY_WEIGHTS[actorEffectiveRole];
     const newRoleWeight = ROLE_HIERARCHY_WEIGHTS[newRole];
 
+    // Explicit Hierarchy Enforcement:
+    // Super Admin (Owner) is on top, followed by Admin.
+    // Administrators CANNOT modify credentials, permissions, or roles of other Administrators or Super Admins.
+    if (actor.role === UserRole.ADMIN || actorEffectiveRole === "ADMINISTRATOR") {
+      if (targetCurrentRole === "OWNER" || targetCurrentRole === "ADMINISTRATOR") {
+        throw new ForbiddenError(
+          "Insufficient privileges: Administrators cannot modify credentials, permissions, or roles of other Administrators or Super Admins (Owners)."
+        );
+      }
+    }
+
     // 2. Only OWNER can assign OWNER or ADMINISTRATOR roles
     if (newRole === "OWNER" || newRole === "ADMINISTRATOR") {
       if (actorEffectiveRole !== "OWNER") {
@@ -179,6 +190,39 @@ export class RbacService {
           `Insufficient privileges: You cannot modify an account that holds rank equal to or above yours.`
         );
       }
+    }
+  }
+
+  /**
+   * Enforces that an actor can only modify credentials (password, email, status) of users strictly below them.
+   * Super Admin (Owner) on top can manage all users.
+   * Administrators cannot change credentials, status, or permissions of other Admins or Super Admins.
+   * Staff and Customers cannot modify credentials of any other users.
+   */
+  validateCredentialModification(
+    actor: { id: string; role: UserRole },
+    targetUser: { id: string; role: UserRole }
+  ): void {
+    // 1. Super Admin (Owner) on top has full authority
+    if (actor.role === UserRole.SUPER_ADMIN) {
+      return;
+    }
+
+    // 2. Only administrators can manage other user accounts
+    if (actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenError("Only authorized administrators can manage user credentials.");
+    }
+
+    // 3. Self modification of credentials through admin panel is permitted only if not escalating role
+    if (actor.id === targetUser.id) {
+      return;
+    }
+
+    // 4. Administrator cannot modify credentials or status of other Admins or Super Admins
+    if (targetUser.role === UserRole.ADMIN || targetUser.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenError(
+        "Insufficient privileges: Administrators cannot modify credentials, status, or permissions of other Administrators or Super Admins (Owners)."
+      );
     }
   }
 

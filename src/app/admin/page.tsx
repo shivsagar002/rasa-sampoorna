@@ -190,7 +190,6 @@ export default function AdminDashboardPage() {
       if (user && (user.role === "ADMIN" || user.role === "SUPER_ADMIN" || user.role === "STAFF")) {
         setAdminUser(user);
         setAuthStatus("authenticated");
-        setMessage({ text: `Welcome back, ${user.name || "Administrator"}.`, type: "success" });
       } else {
         throw new Error("Access denied: Administrative privileges required.");
       }
@@ -2180,7 +2179,7 @@ export default function AdminDashboardPage() {
         {/* {activeTab === "operations" && <AdminOperationsTab />} */}
 
         {/* TAB 8: STAFF MANAGEMENT & RBAC PERMISSIONS */}
-        {activeTab === "staff" && <AdminStaffTab />}
+        {activeTab === "staff" && <AdminStaffTab currentUser={adminUser} />}
 
         {/* TAB 9: ADMINISTRATIVE AUDIT TRAIL (Hidden as requested) */}
         {/* {activeTab === "audit" && <AdminAuditTab />} */}

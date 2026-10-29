@@ -240,6 +240,49 @@ describe("RBAC, Audit Logging & Operational Tools Unit Tests", () => {
       }).toThrowError(/Insufficient privileges/i);
     });
 
+    it("prevents an ADMINISTRATOR from modifying or changing permissions of another ADMINISTRATOR", () => {
+      const actor = { id: "admin-actor", role: UserRole.ADMIN };
+      expect(() => {
+        rbacService.validateRoleAssignment(actor, "other-admin", "ADMINISTRATOR", "CATALOG_MANAGER");
+      }).toThrowError(/Administrators cannot modify credentials, permissions, or roles of other Administrators/i);
+    });
+
+    it("prevents an ADMINISTRATOR from modifying credentials of another ADMIN or SUPER_ADMIN", () => {
+      const actor = { id: "admin-actor", role: UserRole.ADMIN };
+      const targetAdmin = { id: "other-admin", role: UserRole.ADMIN };
+      const targetSuperAdmin = { id: "super-admin", role: UserRole.SUPER_ADMIN };
+
+      expect(() => {
+        rbacService.validateCredentialModification(actor, targetAdmin);
+      }).toThrowError(/Administrators cannot modify credentials, status, or permissions of other Administrators/i);
+
+      expect(() => {
+        rbacService.validateCredentialModification(actor, targetSuperAdmin);
+      }).toThrowError(/Administrators cannot modify credentials, status, or permissions of other Administrators/i);
+    });
+
+    it("allows an ADMINISTRATOR to modify credentials of STAFF or CUSTOMER", () => {
+      const actor = { id: "admin-actor", role: UserRole.ADMIN };
+      const targetStaff = { id: "staff-user", role: UserRole.STAFF };
+      const targetCustomer = { id: "customer-user", role: UserRole.CUSTOMER };
+
+      expect(() => {
+        rbacService.validateCredentialModification(actor, targetStaff);
+        rbacService.validateCredentialModification(actor, targetCustomer);
+      }).not.toThrow();
+    });
+
+    it("allows SUPER_ADMIN (Owner) to modify credentials of any user including other Admins", () => {
+      const ownerActor = { id: "owner-actor", role: UserRole.SUPER_ADMIN };
+      const targetAdmin = { id: "admin-user", role: UserRole.ADMIN };
+      const targetSuperAdmin = { id: "other-owner", role: UserRole.SUPER_ADMIN };
+
+      expect(() => {
+        rbacService.validateCredentialModification(ownerActor, targetAdmin);
+        rbacService.validateCredentialModification(ownerActor, targetSuperAdmin);
+      }).not.toThrow();
+    });
+
     it("prevents non-admin staff from assigning any roles", () => {
       const actor = { id: "staff-actor", role: UserRole.STAFF };
       expect(() => {
