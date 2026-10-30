@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 interface CollectionItem {
@@ -34,62 +35,99 @@ const COLLECTIONS: CollectionItem[] = [
   },
 ];
 
+const AUTOPLAY_MS = 3000;
+
 export function CollectionsSection() {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % COLLECTIONS.length);
+    }, AUTOPLAY_MS);
+
+    return () => window.clearInterval(timer);
+  }, [paused]);
+
   return (
     <section id="collections" className="landing-section section-collections">
       <div className="landing-container">
         <div className="collections-layout">
-          {/* Left Intro Text Column */}
-          <div className="collections-intro">
-            <span className="editorial-eyebrow">OUR COLLECTIONS</span>
-            <h2 className="editorial-headline">
-              Discover the art <br className="hidden-mobile" />
-              of making
-            </h2>
-            <p className="editorial-description">
-              Timeless pieces, thoughtfully created by our talented artisans.
-            </p>
-            <a href="#featured-products" className="editorial-link">
-              <span>View All Collections</span>
-              <span className="link-arrow">→</span>
-            </a>
-          </div>
-
-          {/* Right 3-Card Grid */}
-          <div className="collections-grid">
-            {COLLECTIONS.map((item) => (
-              <a
-                key={item.id}
-                href={item.href}
-                className="collection-card group"
-                id={`collection-card-${item.id}`}
+          <div
+            className="collections-carousel"
+            aria-roledescription="carousel"
+            aria-label="Our collections"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+          >
+            <div className="collections-carousel-stage">
+              <div
+                className="collections-carousel-track"
+                style={{ transform: `translateX(-${index * 100}%)` }}
               >
-                <div className="collection-image-wrapper">
-                  <Image
-                    src={item.image}
-                    alt={`${item.name} collection by RASA Sampoorna artisans`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 280px"
-                    className="collection-image"
-                  />
-                  {/* Subtle wishlist / bookmark pill */}
-                  <div className="collection-card-pill" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                  </div>
-                </div>
+                {COLLECTIONS.map((item, itemIndex) => (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    className="collection-card group"
+                    id={`collection-card-${item.id}`}
+                    aria-hidden={itemIndex !== index}
+                  >
+                    <div className="collection-image-wrapper">
+                      <Image
+                        src={item.image}
+                        alt={`${item.name} collection by RASA Sampoorna artisans`}
+                        fill
+                        sizes="100vw"
+                        className="collection-image"
+                      />
+                    </div>
+                  </a>
+                ))}
+              </div>
 
-                <div className="collection-card-body">
-                  <h3 className="collection-card-title">{item.name}</h3>
-                  <p className="collection-card-desc">{item.description}</p>
-                  <span className="collection-explore-link">
-                    <span>Explore</span>
-                    <span className="link-arrow">→</span>
-                  </span>
-                </div>
+              <div className="collections-hero-copy">
+                <span className="editorial-eyebrow">OUR COLLECTIONS</span>
+                <h2 className="editorial-headline">
+                  Discover the art <br />
+                  of making
+                </h2>
+              </div>
+            </div>
+
+            <div className="collections-slide-copy">
+              <h3 className="collection-card-title">{COLLECTIONS[index].name}</h3>
+              <p className="collection-card-desc">{COLLECTIONS[index].description}</p>
+              <a href={COLLECTIONS[index].href} className="collection-explore-link">
+                <span>Explore</span>
+                <span className="link-arrow">→</span>
               </a>
-            ))}
+              <p className="editorial-description">
+                Timeless pieces, thoughtfully created by our talented artisans.
+              </p>
+              <a href="#featured-products" className="editorial-link">
+                <span>View All Collections</span>
+                <span className="link-arrow">→</span>
+              </a>
+            </div>
+
+            <div className="collections-carousel-dots">
+              {COLLECTIONS.map((item, itemIndex) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={itemIndex === index ? "is-active" : ""}
+                  aria-label={`Show ${item.name}`}
+                  aria-current={itemIndex === index ? "true" : undefined}
+                  onClick={() => setIndex(itemIndex)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

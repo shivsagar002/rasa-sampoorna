@@ -337,6 +337,15 @@ button {
   color: var(--text-primary);
   flex-shrink: 0;
   margin-right: clamp(16px, 3vw, 32px);
+
+  /* Smooth Hover Animation */
+  transition: transform 300ms ease;
+  transform-origin: center;
+}
+
+/* Logo Hover Effect */
+.brand-logo:hover {
+  transform: scale(1.05);
 }
 
 .brand-emblem {
@@ -369,6 +378,7 @@ button {
   margin-top: 4px;
 }
 
+
 /* Navigation Links */
 .nav-links {
   display: flex;
@@ -383,28 +393,32 @@ button {
   font-weight: 500;
   color: #4a4036;
   text-decoration: none;
-  transition: color 200ms ease;
+  transition: color 250ms ease;
   padding: 4px 0;
 }
 
-.nav-link:hover {
-  color: var(--text-primary);
-}
-
-.nav-link.is-active {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.nav-link.is-active::after {
+/* Smooth Underline Animation */
+.nav-link::after {
   content: "";
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
+  width: 100%;
   height: 2px;
   background-color: var(--text-primary);
   border-radius: 9999px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 350ms ease;
+}
+
+/* Hover Effect */
+.nav-link:hover {
+  color: var(--text-primary);
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
 }
 
 /* Header Actions */
@@ -1713,9 +1727,66 @@ button {
 
 .collections-layout {
   display: grid;
-  grid-template-columns: 290px 1fr;
-  gap: 48px;
-  align-items: flex-start;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.section-collections .collections-carousel .collection-image-wrapper,
+.section-collections .collections-hero-copy {
+  border-radius: 16px;
+}
+
+.collections-carousel-stage {
+  position: relative;
+  margin: 8px clamp(16px, 3vw, 40px) 4px;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.section-collections .collections-carousel .collection-image-wrapper {
+  aspect-ratio: 16 / 7;
+}
+
+.collections-hero-copy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  pointer-events: none;
+  border-radius: 16px;
+  background: linear-gradient(to top, rgba(44, 38, 33, 0.45), rgba(44, 38, 33, 0.18) 55%, rgba(44, 38, 33, 0.12));
+}
+
+.collections-hero-copy .editorial-eyebrow {
+  color: #f3e6d4;
+}
+
+.collections-hero-copy .editorial-headline {
+  color: #f7f4ee;
+  margin-bottom: 0;
+}
+
+.collections-slide-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.collections-slide-copy .editorial-description {
+  margin: 8px 0 0;
+}
+
+.collections-slide-copy .collection-explore-link,
+.collections-slide-copy .editorial-link {
+  justify-content: center;
 }
 
 .collections-intro {
@@ -1726,6 +1797,51 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
+}
+
+.collections-carousel {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.collections-carousel-track {
+  display: flex;
+  width: 100%;
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.collections-carousel-track .collection-card {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
+.collections-carousel .collection-card:hover {
+  transform: none;
+}
+
+.collections-carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.collections-carousel-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  background-color: #d5c9bd;
+  transition: width 250ms ease, background-color 250ms ease;
+}
+
+.collections-carousel-dots button.is-active {
+  width: 22px;
+  background-color: var(--btn-dark, #2e3830);
 }
 
 .collection-card {
@@ -2122,7 +2238,48 @@ button {
    SECTION D: Featured Products
    -------------------------------------------------------------------------- */
 .section-products {
-  background-color: var(--color-warm-ivory);
+  background-color: #dcd2c8;
+}
+
+.section-products .products-grid {
+  gap: 28px 16px;
+}
+
+.section-products .product-image-container {
+  border-radius: 2px;
+  border: none;
+  box-shadow: none;
+  background-color: #e7dfd4;
+}
+
+.section-products .product-image {
+  transform: scale(1);
+  transition: transform 420ms ease;
+}
+
+.section-products .product-card:hover .product-image {
+  transform: scale(1.06);
+}
+
+.section-products .product-details {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.section-products .product-name {
+  font-size: 0.98rem;
+  font-weight: 400;
+  line-height: 1.3;
+  margin-bottom: 0;
+}
+
+.section-products .product-price {
+  font-size: 0.92rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .products-header {
@@ -2353,10 +2510,42 @@ button {
 
 .philosophy-layout {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 64px;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 56px;
   align-items: center;
   margin-bottom: 0;
+}
+
+.philosophy-collage {
+  display: grid;
+  grid-template-columns: 1.55fr 0.85fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.philosophy-collage-main {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background-color: #e7dfd4;
+}
+
+.philosophy-collage-stack {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.philosophy-collage-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  background-color: #e7dfd4;
+}
+
+.philosophy-text-col {
+  max-width: 440px;
 }
 
 /* --------------------------------------------------------------------------
@@ -2383,6 +2572,10 @@ button {
   object-fit: cover;
 }
 
+.philosophy-collage-main .philosophy-photo {
+  object-position: 18% center;
+}
+
 .philosophy-botanical {
   position: absolute;
   top: -20px;
@@ -2395,9 +2588,26 @@ button {
 /* FAQ & Contact Grid */
 .faq-contact-grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 56px;
-  align-items: flex-start;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 36px;
+  align-items: center;
+  background-color: #fff;
+  border-radius: 28px;
+  padding: 28px 22px 28px 40px;
+}
+
+.faq-contact-photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 22px;
+  overflow: hidden;
+  background-color: #efe8df;
+}
+
+.faq-contact-image {
+  object-fit: cover;
+  object-position: center 18%;
 }
 
 .faq-main-title {
@@ -2410,44 +2620,60 @@ button {
 .faq-accordion-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .faq-accordion-item {
-  border-bottom: 1px solid rgba(140, 115, 85, 0.25);
+  border-bottom: none;
 }
 
 .faq-accordion-header {
   width: 100%;
-  padding: 16px 0;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: transparent;
+  gap: 16px;
+  background: #f3f0ea;
   border: none;
+  border-radius: 999px;
   cursor: pointer;
   text-align: left;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 0.92rem;
   font-weight: 500;
   color: #2C2621;
-  transition: color 150ms ease;
+  transition: background-color 180ms ease;
 }
 
-.faq-accordion-header:hover {
-  color: var(--color-gold-accent);
+.faq-accordion-header:hover,
+.faq-accordion-item.is-open .faq-accordion-header {
+  background: #ebe6de;
+  color: #2C2621;
 }
 
 .faq-toggle-icon {
-  font-size: 1.1rem;
-  color: var(--color-gold-accent);
+  font-size: 1.15rem;
+  line-height: 1;
+  color: #2C2621;
 }
 
 .faq-accordion-body {
-  padding-bottom: 16px;
+  display: grid;
+  grid-template-rows: 0fr;
+  padding: 0 18px;
+  transition: grid-template-rows 280ms ease, padding 280ms ease;
+}
+
+.faq-accordion-item:hover .faq-accordion-body,
+.faq-accordion-item.is-open .faq-accordion-body {
+  grid-template-rows: 1fr;
+  padding: 10px 18px 2px;
 }
 
 .faq-answer-text {
+  overflow: hidden;
+  margin: 0;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 0.86rem;
   line-height: 1.6;
@@ -2867,9 +3093,8 @@ button {
     grid-template-columns: 1fr;
     gap: 36px;
   }
-  .philosophy-image-col {
-    max-width: 580px;
-    margin: 0 auto;
+  .philosophy-collage {
+    max-width: 560px;
   }
   .faq-contact-grid {
     grid-template-columns: 1fr;
@@ -3217,9 +3442,11 @@ button {
   .philosophy-layout {
     gap: 20px;
   }
-  .philosophy-image-frame {
-    aspect-ratio: 16 / 10;
-    border-radius: 12px;
+  .philosophy-collage {
+    gap: 8px;
+  }
+  .philosophy-collage-main {
+    aspect-ratio: 3 / 4;
   }
 
   /* FAQs & Contact */
@@ -3230,8 +3457,11 @@ button {
     font-size: 1.45rem;
     margin-bottom: 12px;
   }
+  .faq-contact-grid {
+    padding: 16px;
+  }
   .faq-accordion-header {
-    padding: 11px 0;
+    padding: 12px 14px;
     font-size: 0.82rem;
   }
   .faq-answer-text {
@@ -3345,9 +3575,11 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .collection-card,
   .collection-image,
+  .collections-carousel-track,
   .gifting-photo,
   .product-image,
   .process-image,
+  .faq-accordion-body,
   .btn-charcoal,
   .link-arrow {
     transition: none !important;
