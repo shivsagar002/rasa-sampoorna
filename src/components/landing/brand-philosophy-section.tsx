@@ -109,59 +109,65 @@ export function BrandPhilosophySection() {
       </section>
 
       {/* SECTION F2 — FAQs & CONTACT */}
-      <section id="faqs" className="landing-section section-faq">
-        <div className="landing-container">
-          <div className="faq-contact-grid">
-            <div className="faq-column">
-              <span className="editorial-eyebrow">FAQ</span>
-              <h3 className="faq-main-title font-serif">Quick answers to your questions.</h3>
+      {/* SECTION F2 — FAQs & CONTACT */}
+<section id="faqs" className="landing-section section-faq">
+  <div className="landing-container">
+    <div className="faq-contact-grid">
+      <div className="faq-column">
+        <span className="editorial-eyebrow">FAQ</span>
+        <h3 className="faq-main-title font-serif">
+          Quick answers to your questions.
+        </h3>
 
-              <div className="faq-accordion-list">
-                {FAQS.map((faq) => {
-                  const isOpen = openFaq === faq.id;
+        <div className="faq-accordion-list">
+          {FAQS.map((faq) => {
+            const isOpen = openFaq === faq.id;
 
-                  return (
-                    <div
-                      key={faq.id}
-                      className={`faq-accordion-item${isOpen ? " is-open" : ""}`}
-                      onMouseEnter={() => setOpenFaq(faq.id)}
-                      onMouseLeave={() => setOpenFaq(null)}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleFaq(faq.id)}
-                        className="faq-accordion-header"
-                        aria-expanded={isOpen}
-                      >
-                        <span className="faq-question-text">{faq.question}</span>
-                        <span className="faq-toggle-icon" aria-hidden="true">
-                          {isOpen ? "−" : "+"}
-                        </span>
-                      </button>
+            return (
+              <div
+                key={faq.id}
+                className={`faq-accordion-item${isOpen ? " is-open" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleFaq(faq.id)}
+                  className="faq-accordion-header"
+                  aria-expanded={isOpen}
+                >
+                  <span className="faq-question-text">
+                    {faq.question}
+                  </span>
 
-                      <div className="faq-accordion-body">
-                        <p className="faq-answer-text">{faq.answer}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                  <span className="faq-toggle-icon" aria-hidden="true">
+                    {isOpen ? "−" : "+"}
+                  </span>
+                </button>
+
+                <div className="faq-accordion-body">
+                  <p className="faq-answer-text">
+                    {faq.answer}
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="contact-column" id="contact">
-              <div className="faq-contact-photo">
-                <Image
-                  src="/landing/faq_contact_portrait.jpg"
-                  alt="An artisan from RASA Sampoorna, here to help with your questions"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 420px"
-                  className="faq-contact-image"
-                />
-              </div>
-            </div>
-          </div>
+            );
+          })}
+        </div>
       </div>
-    </section>
+
+      <div className="contact-column" id="contact">
+        <div className="faq-contact-photo">
+          <Image
+            src="/landing/faq_contact_portrait.jpg"
+            alt="An artisan from RASA Sampoorna, here to help with your questions"
+            fill
+            sizes="(max-width: 768px) 100vw, 420px"
+            className="faq-contact-image"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
     </>
   );
 }

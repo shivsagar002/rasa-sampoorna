@@ -331,24 +331,34 @@ export default function ShopPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "240px 1fr",
+            gridTemplateColumns: "240px minmax(0, 1fr)",
             gap: "36px",
             alignItems: "start",
           }}
           className="shop-main-layout"
         >
           {/* Desktop Filter Sidebar */}
-          <aside
-            className="desktop-filter-sidebar"
-            style={{
-              backgroundColor: "rgba(250, 247, 242, 0.7)",
-              border: "1px solid var(--border-light, #e8dfd5)",
-              borderRadius: "16px",
-              padding: "24px 20px",
-              position: "sticky",
-              top: "100px",
-            }}
-          >
+      <aside
+  className="desktop-filter-sidebar"
+  style={{
+    backgroundColor: "rgba(250, 247, 242, 0.95)",
+    border: "1px solid var(--border-light, #e8dfd5)",
+    borderRadius: "16px",
+    padding: "24px 20px",
+
+    position: "sticky",
+    top: "110px",
+    alignSelf: "start",
+
+    // No internal scrolling
+    height: "fit-content",
+    maxHeight: "none",
+    overflow: "visible",
+
+    zIndex: 10,
+    boxShadow: "0 8px 24px rgba(44, 38, 33, 0.04)",
+  }}
+>
             {/* Sidebar Header & Clear All Control */}
             <div
               style={{

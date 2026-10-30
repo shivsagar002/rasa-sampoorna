@@ -545,6 +545,7 @@ export default function FAQPage() {
 
         {/* Still Have Questions CTA */}
         <section
+          className="faq-support-cta"
           style={{
             marginTop: "64px",
             textAlign: "center",
