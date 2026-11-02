@@ -15,7 +15,7 @@ import {
 import { razorpayClient } from "@/lib/integrations/razorpay";
 import { shiprocketClient } from "@/lib/integrations/shiprocket";
 import { prisma } from "@/lib/db/prisma";
-import { ValidationError, ForbiddenError, NotFoundError } from "@/lib/api/errors";
+import { BadRequestError, ValidationError, ForbiddenError, NotFoundError } from "@/lib/api/errors";
 import {
   OrderStatus,
   PaymentStatus,
@@ -31,6 +31,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      groupBy: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -123,6 +124,101 @@ describe("Orders, Razorpay Payments, Shiprocket & Returns Suite", () => {
       expect(() =>
         validateOrderStatusTransition(OrderStatus.SHIPPED, OrderStatus.DELIVERED)
       ).not.toThrow();
+    });
+
+    describe("Admin Order Dashboard Workflows", () => {
+      it("aggregates order and awaiting-payment totals by database status", async () => {
+        vi.mocked(prisma.order.groupBy)
+          .mockResolvedValueOnce([
+            { status: OrderStatus.PROCESSING, _count: { id: 3 } },
+            { status: OrderStatus.SHIPPED, _count: { id: 2 } },
+            { status: OrderStatus.DELIVERED, _count: { id: 5 } },
+          ] as any)
+          .mockResolvedValueOnce([
+            { paymentStatus: PaymentStatus.PENDING, _count: { id: 2 } },
+            { paymentStatus: PaymentStatus.AUTHORIZED, _count: { id: 1 } },
+          ] as any);
+
+        await expect(adminOrderService.getOrderSummary()).resolves.toEqual({
+          total: 10,
+          pendingPayments: 3,
+          processing: 3,
+          shippedDelivered: 7,
+        });
+      });
+
+      it("exports all matching orders with database-backed financial columns", async () => {
+        vi.mocked(prisma.order.findMany).mockResolvedValue([
+          {
+            orderNumber: "RASA-1001",
+            createdAt: new Date("2025-01-02T00:00:00.000Z"),
+            status: OrderStatus.PROCESSING,
+            paymentStatus: PaymentStatus.CAPTURED,
+            paymentMethod: "RAZORPAY",
+            subtotalMinorUnits: 10000,
+            discountAmountMinorUnits: 500,
+            taxAmountMinorUnits: 900,
+            shippingFeeMinorUnits: 250,
+            totalAmountMinorUnits: 10650,
+            _count: { items: 2 },
+            shipments: [{
+              carrier: "SHIPROCKET",
+              trackingNumber: "TRACK-1",
+              awbCode: null,
+              estimatedDeliveryAt: new Date("2025-01-05T00:00:00.000Z"),
+            }],
+          },
+        ] as any);
+
+        const csv = await adminOrderService.exportOrdersCsv({
+          status: OrderStatus.PROCESSING,
+          search: "RASA-1001",
+        });
+
+        expect(csv).toContain('"Subtotal (INR)"');
+        expect(csv).toContain('"100.00","5.00","9.00","2.50","106.50"');
+        expect(csv).toContain('"SHIPROCKET","TRACK-1"');
+        expect(prisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+          where: expect.objectContaining({ status: OrderStatus.PROCESSING }),
+          take: 5001,
+        }));
+      });
+
+      it("rejects filtered CSV exports above the supported order limit", async () => {
+        vi.mocked(prisma.order.findMany).mockResolvedValue(
+          Array.from({ length: 5001 }, () => ({})) as any
+        );
+
+        await expect(adminOrderService.exportOrdersCsv({})).rejects.toThrow(BadRequestError);
+      });
+
+      it("bulk advances captured orders transactionally and records an audit event per order", async () => {
+        vi.mocked(prisma.order.findMany).mockResolvedValue([
+          { id: "order-1", status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.CAPTURED },
+          { id: "order-2", status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.CAPTURED },
+        ] as any);
+
+        await expect(
+          adminOrderService.bulkUpdateStatus(
+            ["order-1", "order-2"],
+            OrderStatus.PROCESSING,
+            "admin-1"
+          )
+        ).resolves.toEqual({ updatedCount: 2 });
+        expect(prisma.order.update).toHaveBeenCalledTimes(2);
+        expect(prisma.auditLog.create).toHaveBeenCalledTimes(2);
+      });
+
+      it("rejects bulk status changes for orders without captured payment", async () => {
+        vi.mocked(prisma.order.findMany).mockResolvedValue([
+          { id: "order-1", status: OrderStatus.CONFIRMED, paymentStatus: PaymentStatus.PENDING },
+        ] as any);
+
+        await expect(
+          adminOrderService.bulkUpdateStatus(["order-1"], OrderStatus.PROCESSING, "admin-1")
+        ).rejects.toThrow(ValidationError);
+        expect(prisma.order.update).not.toHaveBeenCalled();
+      });
     });
 
     it("rejects invalid Order transitions (e.g. DELIVERED directly back to PENDING_PAYMENT or CANCELLED)", () => {

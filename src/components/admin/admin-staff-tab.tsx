@@ -7,13 +7,27 @@ interface AdminStaffTabProps {
   currentUser?: { id: string; email: string; name: string; role: string } | null;
 }
 
+interface StaffSummary {
+  totalStaff: number;
+  activeUsers: number;
+  pendingInvitations: number | null;
+  mfaEnabled: number;
+  mfaTrackedStaff: number;
+}
+
 export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
   const [viewMode, setViewMode] = useState<"staff" | "all_users">("staff");
   const [staff, setStaff] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
+  const [staffSearch, setStaffSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("ALL");
+  const [mfaFilter, setMfaFilter] = useState("ALL");
+  const [staffSummary, setStaffSummary] = useState<StaffSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
   const [newRole, setNewRole] = useState<string>("CUSTOMER_SUPPORT");
   const [customPermissions, setCustomPermissions] = useState<string[]>([]);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -63,14 +77,24 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
     setLoading(true);
     try {
       const res = await fetch("/api/v1/admin/staff");
-      if (res.ok) {
-        const json = await res.json();
-        setStaff(json.staff || []);
-      }
-    } catch {
-      // handled
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to load staff.");
+      setStaff(json.staff || []);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Failed to load staff.", type: "error" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStaffSummary = async () => {
+    try {
+      const res = await fetch("/api/v1/admin/staff/summary");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to load staff totals.");
+      setStaffSummary(json.data);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Failed to load staff totals.", type: "error" });
     }
   };
 
@@ -78,12 +102,11 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
     setLoading(true);
     try {
       const res = await fetch("/api/v1/admin/users");
-      if (res.ok) {
-        const json = await res.json();
-        setUsers(json.data?.users || []);
-      }
-    } catch {
-      // handled
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to load users.");
+      setUsers(json.data?.users || []);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Failed to load users.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -91,7 +114,7 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
 
   useEffect(() => {
     if (viewMode === "staff") {
-      fetchStaff();
+      void Promise.all([fetchStaff(), fetchStaffSummary()]);
     } else {
       fetchAllUsers();
     }
@@ -156,6 +179,73 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
     }
   };
 
+  const handleUpdateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setIsSubmittingUser(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/v1/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          name: newUserForm.name.trim(),
+          email: newUserForm.email.trim(),
+          phone: newUserForm.phone.trim(),
+          role: newUserForm.role,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to update user.");
+
+      setMessage({ text: `User '${newUserForm.name}' updated successfully.`, type: "success" });
+      setShowAddUserModal(false);
+      setEditingUser(null);
+      await Promise.all([fetchStaff(), fetchAllUsers(), fetchStaffSummary()]);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Failed to update user.", type: "error" });
+    } finally {
+      setIsSubmittingUser(false);
+    }
+  };
+
+  const handleToggleUserActive = async (user: any) => {
+    const nextActive = !user.isActive;
+    if (!nextActive && !window.confirm(`Deactivate ${user.name}'s account?`)) return;
+    setMessage(null);
+    try {
+      const res = await fetch("/api/v1/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, isActive: nextActive }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to update account status.");
+      setUsers((current) => current.map((item) => item.id === user.id ? { ...item, isActive: nextActive } : item));
+      setMessage({
+        text: `${user.name}'s account ${nextActive ? "activated" : "deactivated"}.`,
+        type: "success",
+      });
+      await Promise.all([fetchStaff(), fetchStaffSummary()]);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Failed to update account status.", type: "error" });
+    }
+  };
+
+  const openUserEditor = (user: any) => {
+    setEditingUser(user);
+    setNewUserForm({
+      name: user.name || "",
+      email: user.email || "",
+      password: "",
+      role: user.role || "CUSTOMER",
+      phone: user.phone || "",
+    });
+    setShowAddUserModal(true);
+  };
+
   const handleUpdateCredentials = async () => {
     if (!selectedStaff || !credentialsPassword || credentialsPassword.length < 6) return;
     setUpdatingCredentials(true);
@@ -208,16 +298,30 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
     }
   };
 
-  const sortedStaff = [...staff].sort((a, b) => {
+  const filteredStaff = staff.filter((member) => {
+    const term = staffSearch.trim().toLowerCase();
+    if (term && !member.name.toLowerCase().includes(term) && !member.email.toLowerCase().includes(term)) return false;
+    if (roleFilter !== "ALL" && member.assignedRole !== roleFilter && member.baseRole !== roleFilter) return false;
+    if (accountStatusFilter === "ACTIVE" && !member.isActive) return false;
+    if (accountStatusFilter === "INACTIVE" && member.isActive) return false;
+    if (mfaFilter === "ENABLED" && !member.mfaEnabled) return false;
+    if (mfaFilter === "DISABLED" && member.mfaEnabled) return false;
+    return true;
+  });
+
+  const sortedStaff = [...filteredStaff].sort((a, b) => {
     const wA = getRoleWeight(a.assignedRole || a.baseRole);
     const wB = getRoleWeight(b.assignedRole || b.baseRole);
     return wA - wB;
   });
 
   const filteredUsers = users.filter((u) => {
-    if (!userSearch) return true;
-    const term = userSearch.toLowerCase();
-    return u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term) || u.phone?.includes(term);
+    const term = userSearch.trim().toLowerCase();
+    if (term && !u.name?.toLowerCase().includes(term) && !u.email?.toLowerCase().includes(term) && !u.phone?.includes(term)) return false;
+    if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
+    if (accountStatusFilter === "ACTIVE" && !u.isActive) return false;
+    if (accountStatusFilter === "INACTIVE" && u.isActive) return false;
+    return true;
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
@@ -340,6 +444,20 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
         </div>
       )}
 
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
+        {[
+          { label: "Total Staff", value: staffSummary?.totalStaff },
+          { label: "Active Users", value: staffSummary?.activeUsers },
+          { label: "Pending Invitations", value: staffSummary?.pendingInvitations ?? "Not tracked" },
+          { label: "MFA Enabled", value: staffSummary ? `${staffSummary.mfaEnabled} / ${staffSummary.mfaTrackedStaff}` : "—" },
+        ].map((card) => (
+          <div key={card.label} style={{ background: "#fff", border: "1px solid var(--border-light)", borderRadius: "10px", padding: "14px 16px" }}>
+            <div style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase" }}>{card.label}</div>
+            <div style={{ fontSize: "22px", fontWeight: 600, color: "var(--text-primary)", marginTop: "5px" }}>{card.value ?? "—"}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Directory Card */}
       <div style={{ backgroundColor: "#fff", borderRadius: "10px", border: "1px solid var(--border-light, #e8dfd5)", overflow: "hidden" }}>
         {/* Header Controls */}
@@ -389,27 +507,55 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            {viewMode === "all_users" && (
-              <input
-                type="text"
-                placeholder="Search name, email, phone..."
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                style={{
-                  padding: "6px 12px",
-                  fontSize: "12px",
-                  border: "1px solid #e8dfd5",
-                  borderRadius: "6px",
-                  outline: "none",
-                  width: "200px",
-                }}
-              />
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="search"
+              placeholder="Search name or email..."
+              value={viewMode === "staff" ? staffSearch : userSearch}
+              onChange={(event) => viewMode === "staff" ? setStaffSearch(event.target.value) : setUserSearch(event.target.value)}
+              style={{ padding: "6px 12px", fontSize: "12px", border: "1px solid #e8dfd5", borderRadius: "6px", outline: "none", width: "190px" }}
+            />
+            <select
+              aria-label="Filter users by role"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+              style={{ padding: "6px 8px", fontSize: "12px", border: "1px solid #e8dfd5", borderRadius: "6px", background: "#fff" }}
+            >
+              <option value="ALL">All roles</option>
+              {["SUPER_ADMIN", "ADMIN", "STAFF", "CUSTOMER", "OWNER", "ADMINISTRATOR", "CATALOG_MANAGER", "ORDER_FULFILLMENT_MANAGER", "CUSTOMER_SUPPORT"].map((role) => (
+                <option key={role} value={role}>{role.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Filter users by account status"
+              value={accountStatusFilter}
+              onChange={(event) => setAccountStatusFilter(event.target.value)}
+              style={{ padding: "6px 8px", fontSize: "12px", border: "1px solid #e8dfd5", borderRadius: "6px", background: "#fff" }}
+            >
+              <option value="ALL">All accounts</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Deactivated</option>
+            </select>
+            {viewMode === "staff" && (
+              <select
+                aria-label="Filter staff by MFA status"
+                value={mfaFilter}
+                onChange={(event) => setMfaFilter(event.target.value)}
+                style={{ padding: "6px 8px", fontSize: "12px", border: "1px solid #e8dfd5", borderRadius: "6px", background: "#fff" }}
+              >
+                <option value="ALL">All MFA statuses</option>
+                <option value="ENABLED">MFA enabled</option>
+                <option value="DISABLED">MFA disabled</option>
+              </select>
             )}
 
             <button
               type="button"
-              onClick={() => setShowAddUserModal(true)}
+              onClick={() => {
+                setEditingUser(null);
+                setNewUserForm({ name: "", email: "", password: "", role: "STAFF", phone: "" });
+                setShowAddUserModal(true);
+              }}
               style={{
                 padding: "6px 14px",
                 backgroundColor: "var(--accent-terracotta, #802a2a)",
@@ -717,6 +863,22 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
                               {u.role === "STAFF" ? "Configure Staff" : "Manage Account"}
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => openUserEditor(u)}
+                            style={{ marginLeft: "6px", padding: "4px 9px", fontSize: "11px", background: "#fff", color: "var(--text-primary)", border: "1px solid #e8dfd5", borderRadius: "4px" }}
+                          >
+                            Edit
+                          </button>
+                          {u.id !== activeUser?.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserActive(u)}
+                              style={{ marginLeft: "6px", padding: "4px 9px", fontSize: "11px", background: "#fff", color: u.isActive ? "#b91c1c" : "#15803d", border: "1px solid #e8dfd5", borderRadius: "4px" }}
+                            >
+                              {u.isActive ? "Deactivate" : "Activate"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -755,17 +917,17 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
               <h3 className="font-serif" style={{ fontSize: "18px", margin: 0, color: "#2c2621" }}>
-                Add New User / Staff
+                {editingUser ? "Edit User Account" : "Add New User / Staff"}
               </h3>
               <button
-                onClick={() => setShowAddUserModal(false)}
+                onClick={() => { setShowAddUserModal(false); setEditingUser(null); }}
                 style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#8c7d70" }}
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleAddUserSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <form onSubmit={editingUser ? handleUpdateUserSubmit : handleAddUserSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
                   Full Name
@@ -832,7 +994,7 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
                 </div>
               </div>
 
-              <div>
+              {!editingUser && <div>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
                   Password (Min. 6 characters)
                 </label>
@@ -845,12 +1007,12 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
                   onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
                   style={{ width: "100%", padding: "8px 12px", border: "1px solid #e8dfd5", borderRadius: "6px", fontSize: "13px" }}
                 />
-              </div>
+              </div>}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
                 <button
                   type="button"
-                  onClick={() => setShowAddUserModal(false)}
+                  onClick={() => { setShowAddUserModal(false); setEditingUser(null); }}
                   style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #e8dfd5", background: "none", fontSize: "12px" }}
                 >
                   Cancel
@@ -869,7 +1031,7 @@ export function AdminStaffTab({ currentUser }: AdminStaffTabProps) {
                     cursor: "pointer",
                   }}
                 >
-                  {isSubmittingUser ? "Creating User..." : "Create User"}
+                  {isSubmittingUser ? (editingUser ? "Saving..." : "Creating User...") : (editingUser ? "Save Changes" : "Create User")}
                 </button>
               </div>
             </form>

@@ -268,7 +268,6 @@ Open `.env.local` and `.env` (the Prisma CLI reads `.env`, while Next.js reads `
 ```env
 # Server Runtime
 NODE_ENV="development"
-PORT=3000
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # PostgreSQL Connection String (replace with your local or cloud Postgres URI)
@@ -334,11 +333,13 @@ pnpm run db:seed
 ---
 
 ### Step 5.5: Run the Development Server
-Start the Next.js development server with Turbopack:
+Start the Next.js development server with Turbopack on port `3000`:
 
 ```bash
 pnpm dev
 ```
+
+The storefront and `/api/v1/*` backend routes run in the same Next.js server, so admin login and its session cookie use the same origin and port. `PORT` in `.env` cannot set the listening port; the development script pins it to `3000`.
 
 * **Storefront:** [http://localhost:3000](http://localhost:3000)
 * **Admin Portal:** [http://localhost:3000/admin](http://localhost:3000/admin)
@@ -375,7 +376,7 @@ The `/admin` portal provides a unified control room equipped with 10 operational
 | Variable | Required in Prod | Sandbox Mock Fallback | Purpose |
 | :--- | :---: | :---: | :--- |
 | `NODE_ENV` | Yes | No | Runtime environment (`development`, `production`, `test`) |
-| `PORT` | No | No | Server listen port (Defaults to `3000`) |
+| `PORT` | No | No | Server listen port, set in the process environment before startup (defaults to `3000`; `.env` is too late) |
 | `NEXT_PUBLIC_APP_URL` | Yes | No | Canonical frontend URL for links and CORS origins |
 | `DATABASE_URL` | Yes | No | PostgreSQL connection URI with connection pooling |
 | `AUTH_SECRET` | Yes | No | 32+ character random secret for signing JWT sessions |

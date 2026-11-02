@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     await requireStaff(req);
     const filters = validateQuery(req, productFilterQuerySchema);
-    const { items, pagination } = await catalogService.getProducts(filters);
+    const { items, pagination } = await catalogService.getProducts(filters, true);
     return apiPaginated(items, pagination);
   } catch (error) {
     return handleApiError(error);

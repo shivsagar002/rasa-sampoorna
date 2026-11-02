@@ -24,7 +24,7 @@ export const analyticsQuerySchema = z.object({
 export type AnalyticsQueryInput = z.infer<typeof analyticsQuerySchema>;
 
 export const exportQuerySchema = z.object({
-  type: z.enum(["orders", "sales", "inventory", "coupons", "returns"]),
+  type: z.enum(["orders", "financial", "sales", "inventory", "coupons", "returns"]),
   preset: z
     .enum([
       "today",

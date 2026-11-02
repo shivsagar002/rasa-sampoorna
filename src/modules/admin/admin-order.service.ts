@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { NotFoundError, ValidationError } from "@/lib/api/errors";
+import { BadRequestError, NotFoundError, ValidationError } from "@/lib/api/errors";
 import { OrderStatus, PaymentStatus, Prisma, ShipmentStatus } from "@prisma/client";
 import { shiprocketClient } from "@/lib/integrations/shiprocket";
 import { razorpayClient } from "@/lib/integrations/razorpay";
@@ -8,8 +8,8 @@ import { validateOrderStatusTransition } from "@/modules/orders/order-state";
 import { logger } from "@/lib/observability/logger";
 
 export interface AdminOrderFilterParams {
-  status?: OrderStatus;
-  paymentStatus?: PaymentStatus;
+  status?: OrderStatus | "SHIPPED_DELIVERED";
+  paymentStatus?: PaymentStatus | "AWAITING_PAYMENT";
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -18,22 +18,97 @@ export interface AdminOrderFilterParams {
 }
 
 export class AdminOrderService {
-  /**
-   * Search and filter all orders with pagination
-   */
-  async listOrders(params: AdminOrderFilterParams) {
-    const page = Math.max(1, params.page || 1);
-    const limit = Math.min(50, Math.max(1, params.limit || 15));
-    const skip = (page - 1) * limit;
+  async getOrderSummary() {
+    const [statusGroups, paymentGroups] = await Promise.all([
+      prisma.order.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }),
+      prisma.order.groupBy({
+        by: ["paymentStatus"],
+        _count: { id: true },
+      }),
+    ]);
 
+    const statusCounts = new Map(statusGroups.map((group) => [group.status, group._count.id]));
+    const paymentCounts = new Map(paymentGroups.map((group) => [group.paymentStatus, group._count.id]));
+    const total = statusGroups.reduce((sum, group) => sum + group._count.id, 0);
+
+    return {
+      total,
+      pendingPayments:
+        (paymentCounts.get(PaymentStatus.PENDING) || 0) +
+        (paymentCounts.get(PaymentStatus.AUTHORIZED) || 0),
+      processing: statusCounts.get(OrderStatus.PROCESSING) || 0,
+      shippedDelivered:
+        (statusCounts.get(OrderStatus.SHIPPED) || 0) +
+        (statusCounts.get(OrderStatus.OUT_FOR_DELIVERY) || 0) +
+        (statusCounts.get(OrderStatus.DELIVERED) || 0),
+    };
+  }
+
+  async bulkUpdateStatus(orderIds: string[], targetStatus: OrderStatus, adminUserId: string) {
+    if (targetStatus !== OrderStatus.CONFIRMED && targetStatus !== OrderStatus.PROCESSING) {
+      throw new BadRequestError("Bulk updates are limited to confirming or processing paid orders.");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const orders = await tx.order.findMany({
+        where: { id: { in: orderIds } },
+        select: { id: true, status: true, paymentStatus: true },
+      });
+
+      if (orders.length !== orderIds.length) {
+        throw new NotFoundError("One or more selected orders");
+      }
+
+      for (const order of orders) {
+        if (order.paymentStatus !== PaymentStatus.CAPTURED) {
+          throw new ValidationError("Only orders with captured payment can be bulk updated.");
+        }
+        validateOrderStatusTransition(order.status, targetStatus);
+      }
+
+      for (const order of orders) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: targetStatus },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: adminUserId,
+            action: "ORDER_STATUS_UPDATED",
+            entity: "Order",
+            entityId: order.id,
+            details: JSON.stringify({
+              previousStatus: order.status,
+              targetStatus,
+              source: "bulk_admin_action",
+            }),
+          },
+        });
+      }
+
+      return { updatedCount: orders.length };
+    });
+  }
+
+  private buildOrderWhere(params: AdminOrderFilterParams): Prisma.OrderWhereInput {
     const where: Prisma.OrderWhereInput = {};
-
     if (params.status) {
-      where.status = params.status;
+      where.status =
+        params.status === "SHIPPED_DELIVERED"
+          ? {
+              in: [OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED],
+            }
+          : params.status;
     }
 
     if (params.paymentStatus) {
-      where.paymentStatus = params.paymentStatus;
+      where.paymentStatus =
+        params.paymentStatus === "AWAITING_PAYMENT"
+          ? { in: [PaymentStatus.PENDING, PaymentStatus.AUTHORIZED] }
+          : params.paymentStatus;
     }
 
     if (params.startDate || params.endDate) {
@@ -53,8 +128,31 @@ export class AdminOrderService {
         { shippingAddress: { name: { contains: q, mode: "insensitive" } } },
         { shippingAddress: { phone: { contains: q, mode: "insensitive" } } },
         { razorpayPaymentId: { contains: q, mode: "insensitive" } },
+        {
+          shipments: {
+            some: {
+              OR: [
+                { trackingNumber: { contains: q, mode: "insensitive" } },
+                { awbCode: { contains: q, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
       ];
     }
+
+    return where;
+  }
+
+  /**
+   * Search and filter all orders with pagination
+   */
+  async listOrders(params: AdminOrderFilterParams) {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(50, Math.max(1, params.limit || 15));
+    const skip = (page - 1) * limit;
+
+    const where = this.buildOrderWhere(params);
 
     const [total, orders] = await Promise.all([
       prisma.order.count({ where }),
@@ -74,6 +172,7 @@ export class AdminOrderService {
       }),
     ]);
 
+    const now = new Date();
     return {
       items: orders.map((o) => ({
         id: o.id,
@@ -97,6 +196,13 @@ export class AdminOrderService {
               courier: o.shipments[0].carrier,
               trackingNumber: o.shipments[0].trackingNumber || o.shipments[0].awbCode,
               trackingUrl: o.shipments[0].trackingUrl,
+              estimatedDeliveryAt: o.shipments[0].estimatedDeliveryAt,
+              isDelayed: Boolean(
+                o.shipments[0].estimatedDeliveryAt &&
+                o.shipments[0].estimatedDeliveryAt < now &&
+                o.shipments[0].status !== ShipmentStatus.DELIVERED &&
+                o.shipments[0].status !== ShipmentStatus.RTO_DELIVERED
+              ),
             }
           : null,
         hasReturns: o.returns.length > 0,
@@ -109,6 +215,84 @@ export class AdminOrderService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async exportOrdersCsv(params: AdminOrderFilterParams) {
+    const orders = await prisma.order.findMany({
+      where: this.buildOrderWhere(params),
+      orderBy: { createdAt: "desc" },
+      take: 5001,
+      select: {
+        orderNumber: true,
+        createdAt: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        subtotalMinorUnits: true,
+        discountAmountMinorUnits: true,
+        taxAmountMinorUnits: true,
+        shippingFeeMinorUnits: true,
+        totalAmountMinorUnits: true,
+        _count: { select: { items: true } },
+        shipments: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
+          select: {
+            carrier: true,
+            trackingNumber: true,
+            awbCode: true,
+            estimatedDeliveryAt: true,
+          },
+        },
+      },
+    });
+
+    if (orders.length > 5000) {
+      throw new BadRequestError("The filtered export exceeds 5,000 orders. Narrow the search or date range and try again.");
+    }
+
+    const csvCell = (value: string | number) => {
+      const text = String(value);
+      const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${safeText.replace(/"/g, '""')}"`;
+    };
+    const header = [
+      "Order Number",
+      "Created At",
+      "Status",
+      "Payment Status",
+      "Payment Method",
+      "Line Item Count",
+      "Subtotal (INR)",
+      "Discount (INR)",
+      "GST (INR)",
+      "Shipping (INR)",
+      "Total (INR)",
+      "Courier",
+      "Tracking ID",
+      "Estimated Delivery",
+    ];
+    const rows = orders.map((order) => {
+      const shipment = order.shipments[0];
+      return [
+        order.orderNumber,
+        order.createdAt.toISOString(),
+        order.status,
+        order.paymentStatus,
+        order.paymentMethod,
+        order._count.items,
+        (order.subtotalMinorUnits / 100).toFixed(2),
+        (order.discountAmountMinorUnits / 100).toFixed(2),
+        (order.taxAmountMinorUnits / 100).toFixed(2),
+        (order.shippingFeeMinorUnits / 100).toFixed(2),
+        (order.totalAmountMinorUnits / 100).toFixed(2),
+        shipment?.carrier || "",
+        shipment?.trackingNumber || shipment?.awbCode || "",
+        shipment?.estimatedDeliveryAt?.toISOString() || "",
+      ];
+    });
+
+    return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
   }
 
   /**

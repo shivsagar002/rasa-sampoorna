@@ -1,16 +1,59 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { AdminOrdersTab } from "@/components/admin/admin-orders-tab";
-import { AdminAnalyticsTab } from "@/components/admin/admin-analytics-tab";
-import { AdminCmsTab } from "@/components/admin/admin-cms-tab";
-import { AdminOperationsTab } from "@/components/admin/admin-operations-tab";
-import { AdminStaffTab } from "@/components/admin/admin-staff-tab";
-import { AdminAuditTab } from "@/components/admin/admin-audit-tab";
-import { AdminPrivacyTab } from "@/components/admin/admin-privacy-tab";
-import { DirectImageUpload } from "@/components/admin/direct-image-upload";
+
+function AdminTabSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading admin section"
+      style={{
+        minHeight: "220px",
+        borderRadius: "12px",
+        border: "1px solid var(--border-light, #e8dfd5)",
+        background: "linear-gradient(90deg, #fff 25%, #f7f4ee 50%, #fff 75%)",
+      }}
+    />
+  );
+}
+
+function ProductThumbnail({ src, alt }: { src: string; alt: string }) {
+  const [imageSrc, setImageSrc] = useState(src);
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      fill
+      sizes="44px"
+      onError={() => setImageSrc("/products/saree-lotus-main.jpg")}
+      style={{ objectFit: "cover" }}
+    />
+  );
+}
+
+const AdminOrdersTab = dynamic(
+  () => import("@/components/admin/admin-orders-tab").then((module) => module.AdminOrdersTab),
+  { loading: AdminTabSkeleton }
+);
+const AdminAnalyticsTab = dynamic(
+  () => import("@/components/admin/admin-analytics-tab").then((module) => module.AdminAnalyticsTab),
+  { loading: AdminTabSkeleton }
+);
+const AdminCmsTab = dynamic(
+  () => import("@/components/admin/admin-cms-tab").then((module) => module.AdminCmsTab),
+  { loading: AdminTabSkeleton }
+);
+const AdminStaffTab = dynamic(
+  () => import("@/components/admin/admin-staff-tab").then((module) => module.AdminStaffTab),
+  { loading: AdminTabSkeleton }
+);
+const DirectImageUpload = dynamic(
+  () => import("@/components/admin/direct-image-upload").then((module) => module.DirectImageUpload),
+  { loading: AdminTabSkeleton }
+);
 
 interface ProductItem {
   id: string;
@@ -40,6 +83,20 @@ interface CategoryItem {
   _count?: { products: number };
 }
 
+interface CatalogSummary {
+  total: number;
+  active: number;
+  lowStock: number;
+  drafts: number;
+}
+
+interface InventorySummary {
+  totalStockUnits: number;
+  reservedStock: number;
+  lowStockProducts: number;
+  inventoryValue: number | null;
+}
+
 interface MovementItem {
   id: string;
   quantityDelta: number;
@@ -65,6 +122,7 @@ export default function AdminDashboardPage() {
     | "audit"
     | "privacy"
   >("analytics");
+  const [analyticsVisited, setAnalyticsVisited] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -78,8 +136,11 @@ export default function AdminDashboardPage() {
 
   // Catalog State
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [catalogSummary, setCatalogSummary] = useState<CatalogSummary | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState<"ALL" | "ACTIVE" | "ARCHIVED">("ALL");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [catalogView, setCatalogView] = useState<"list" | "editor">("list");
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
@@ -105,8 +166,18 @@ export default function AdminDashboardPage() {
   });
 
   // Inventory & Movements
-  const [inventoryList, setInventoryList] = useState<any[]>([]);
   const [movements, setMovements] = useState<MovementItem[]>([]);
+  const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null);
+  const [movementSearchInput, setMovementSearchInput] = useState("");
+  const [movementStartDateInput, setMovementStartDateInput] = useState("");
+  const [movementEndDateInput, setMovementEndDateInput] = useState("");
+  const [movementFilters, setMovementFilters] = useState({
+    search: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementTotal, setMovementTotal] = useState(0);
   const [stockAdjustModal, setStockAdjustModal] = useState<{ productId: string; name: string } | null>(null);
   const [adjustDelta, setAdjustDelta] = useState<number>(5);
   const [adjustReason, setAdjustReason] = useState<string>("Restock consignment received");
@@ -287,41 +358,81 @@ export default function AdminDashboardPage() {
     setCatalogView("editor");
   };
 
-  const loadData = useCallback(async () => {
+  const loadedDataScopes = useRef(new Set<string>());
+  const loadData = useCallback(async (scope: "catalog" | "categories" | "inventory", refresh = false) => {
+    if (!refresh && loadedDataScopes.current.has(scope)) return;
     setLoading(true);
     try {
-      // 1. Load products
-      const pRes = await fetch("/api/v1/products?limit=100");
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        setProducts(Array.isArray(pData.data) ? pData.data : pData.data?.items || []);
-      }
+      if (scope === "catalog") {
+        const [productsResponse, categoriesResponse, summaryResponse] = await Promise.all([
+          fetch("/api/v1/admin/products?limit=100"),
+          fetch("/api/v1/admin/categories"),
+          fetch("/api/v1/admin/products/summary"),
+        ]);
+        const [productsData, categoriesData, summaryData] = await Promise.all([
+          productsResponse.json(),
+          categoriesResponse.json(),
+          summaryResponse.json(),
+        ]);
 
-      // 2. Load categories via administrative endpoint for complete taxonomy
-      const cRes = await fetch("/api/v1/admin/categories");
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        setCategories(cData.data || []);
-      }
+        const failedResponse = [
+          [productsResponse, productsData],
+          [categoriesResponse, categoriesData],
+          [summaryResponse, summaryData],
+        ].find(([response]) => !(response as Response).ok);
+        if (failedResponse) {
+          const [, responseData] = failedResponse;
+          throw new Error(
+            (responseData as { error?: { message?: string } }).error?.message ||
+              "Unable to load catalog data. Please try again."
+          );
+        }
 
-      // 3. Load inventory & movements if on inventory tab
-      const invRes = await fetch("/api/v1/admin/inventory?limit=50");
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        setInventoryList(invData.data?.items || []);
-      }
+        if (!Array.isArray(productsData.data) || !Array.isArray(categoriesData.data) || !summaryData.data) {
+          throw new Error("The catalog API returned an unexpected response. Please refresh and try again.");
+        }
 
-      const movRes = await fetch("/api/v1/admin/inventory/movements?limit=25");
-      if (movRes.ok) {
-        const movData = await movRes.json();
-        setMovements(movData.data?.items || movData.data?.movements || []);
+        setProducts(productsData.data);
+        setCategories(categoriesData.data);
+        setCatalogSummary(summaryData.data);
+      } else if (scope === "categories") {
+        const response = await fetch("/api/v1/admin/categories");
+        if (!response.ok) throw new Error("Unable to load categories. Please try again.");
+        const data = await response.json();
+        setCategories(data.data || []);
+      } else {
+        const params = new URLSearchParams({
+          page: String(movementPage),
+          limit: "25",
+        });
+        if (movementFilters.search.trim()) params.set("search", movementFilters.search.trim());
+        if (movementFilters.startDate) params.set("startDate", movementFilters.startDate);
+        if (movementFilters.endDate) params.set("endDate", movementFilters.endDate);
+        const [movementsResponse, summaryResponse] = await Promise.all([
+          fetch(`/api/v1/admin/inventory/movements?${params}`),
+          fetch("/api/v1/admin/inventory/summary"),
+        ]);
+        if (!movementsResponse.ok || !summaryResponse.ok) {
+          throw new Error("Unable to load inventory data. Please try again.");
+        }
+        const [movementsData, summaryData] = await Promise.all([
+          movementsResponse.json(),
+          summaryResponse.json(),
+        ]);
+        setMovements(movementsData.data?.items || []);
+        setMovementTotal(movementsData.data?.pagination?.total || 0);
+        setInventorySummary(summaryData.data);
       }
+      loadedDataScopes.current.add(scope);
     } catch (err) {
-      console.warn("Admin fetch warning:", err);
+      setMessage({
+        text: err instanceof Error ? err.message : "Unable to load admin data.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [movementFilters, movementPage]);
 
   useEffect(() => {
     checkAdminAuth();
@@ -329,7 +440,9 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (authStatus === "authenticated") {
-      loadData();
+      if (activeTab === "catalog") loadData("catalog");
+      else if (activeTab === "categories") loadData("categories");
+      else if (activeTab === "inventory") loadData("inventory", true);
     }
   }, [authStatus, activeTab, loadData]);
 
@@ -404,7 +517,7 @@ export default function AdminDashboardPage() {
       });
       setCatalogView("list");
       setEditingProduct(null);
-      loadData();
+      await loadData("catalog", true);
     } catch (err: any) {
       setMessage({ text: err.message || "An error occurred while saving the product.", type: "error" });
     } finally {
@@ -476,7 +589,7 @@ export default function AdminDashboardPage() {
       setShowCategoryModal(false);
       setShowQuickCategoryModal(false);
       setEditingCategory(null);
-      loadData();
+      await Promise.all([loadData("categories", true), loadData("catalog", true)]);
     } catch (err: any) {
       setMessage({ text: err.message || "An error occurred while saving category.", type: "error" });
     } finally {
@@ -492,7 +605,7 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || "Failed to delete category.");
       setMessage({ text: `Category "${cat.name}" removed successfully.`, type: "success" });
-      loadData();
+      await Promise.all([loadData("categories", true), loadData("catalog", true)]);
     } catch (err: any) {
       setMessage({ text: err.message, type: "error" });
     } finally {
@@ -511,7 +624,7 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || "Failed to update category status.");
       setMessage({ text: `Category "${cat.name}" status changed to ${!cat.isActive ? "Active" : "Archived"}.`, type: "success" });
-      loadData();
+      await Promise.all([loadData("categories", true), loadData("catalog", true)]);
     } catch (err: any) {
       setMessage({ text: err.message, type: "error" });
     } finally {
@@ -540,7 +653,7 @@ export default function AdminDashboardPage() {
 
       setMessage({ text: data.message || "Stock adjusted successfully.", type: "success" });
       setStockAdjustModal(null);
-      loadData();
+      await Promise.all([loadData("inventory", true), loadData("catalog", true)]);
     } catch (err: any) {
       setMessage({ text: err.message, type: "error" });
     } finally {
@@ -570,7 +683,7 @@ export default function AdminDashboardPage() {
       setMessage({ text: data.message || "Bulk operation completed.", type: "success" });
       setShowBulkModal(null);
       setSelectedProductIds([]);
-      loadData();
+      await loadData("catalog", true);
     } catch (err: any) {
       setMessage({ text: err.message, type: "error" });
     } finally {
@@ -630,6 +743,13 @@ export default function AdminDashboardPage() {
       );
     }
     return true;
+  });
+
+  const filteredCategories = categories.filter((category) => {
+    if (categoryStatusFilter === "ACTIVE" && !category.isActive) return false;
+    if (categoryStatusFilter === "ARCHIVED" && category.isActive) return false;
+    const term = categorySearch.trim().toLowerCase();
+    return !term || category.name.toLowerCase().includes(term) || category.slug.toLowerCase().includes(term);
   });
 
   const navTabs = [
@@ -932,9 +1052,10 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "var(--bg-cream, #f7f4ee)" }}>
+    <div className="admin-dashboard-shell" style={{ display: "flex", minHeight: "100vh", backgroundColor: "var(--bg-cream, #f7f4ee)" }}>
       {/* LEFT SIDEBAR NAVIGATION */}
       <aside
+        className="admin-dashboard-sidebar"
         style={{
           width: "250px",
           minWidth: "250px",
@@ -1006,14 +1127,17 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Nav Items */}
-        <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px" }}>
+        <nav className="admin-dashboard-nav" style={{ flex: 1, padding: "12px 10px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px" }}>
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  if (tab.id === "analytics") setAnalyticsVisited(true);
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1090,7 +1214,7 @@ export default function AdminDashboardPage() {
       </aside>
 
       {/* MAIN CONTENT PANE */}
-      <main style={{ flex: 1, minWidth: 0, padding: "24px 30px 80px", overflowY: "auto" }}>
+      <main className="admin-dashboard-main" style={{ flex: 1, minWidth: 0, padding: "24px 30px 80px", overflowY: "auto" }}>
         {/* Minimalist Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px", marginBottom: "22px" }}>
           <div>
@@ -1764,6 +1888,19 @@ export default function AdminDashboardPage() {
         {/* TAB 1: PRODUCT CATALOG - LIST VIEW */}
         {activeTab === "catalog" && catalogView === "list" && (
           <section>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "18px" }}>
+              {[
+                { label: "Total Products", value: catalogSummary?.total, color: "var(--text-primary)" },
+                { label: "Active", value: catalogSummary?.active, color: "#15803d" },
+                { label: "Low Stock", value: catalogSummary?.lowStock, color: "#b45309" },
+                { label: "Drafts", value: catalogSummary?.drafts, color: "var(--text-secondary)" },
+              ].map((card) => (
+                <div key={card.label} style={{ background: "#fff", border: "1px solid var(--border-light)", borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{card.label}</div>
+                  <div style={{ fontSize: "24px", fontWeight: 600, color: card.color, marginTop: "5px" }}>{card.value ?? "—"}</div>
+                </div>
+              ))}
+            </div>
             {/* Filter and Bulk Bar */}
             <div
               style={{
@@ -1867,7 +2004,7 @@ export default function AdminDashboardPage() {
                   ) : (
                     filteredProducts.map((product) => {
                       const isSelected = selectedProductIds.includes(product.id);
-                      const isLowStock = product.stockQuantity <= (product.lowStockThreshold || 2);
+                      const isLowStock = product.stockQuantity <= product.lowStockThreshold;
 
                       return (
                         <tr key={product.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
@@ -1885,12 +2022,10 @@ export default function AdminDashboardPage() {
                           <td style={{ padding: "12px 16px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                               <div style={{ width: "44px", height: "44px", position: "relative", borderRadius: "6px", overflow: "hidden", backgroundColor: "#f2ece4" }}>
-                                <Image
+                                <ProductThumbnail
+                                  key={product.images[0] || "fallback"}
                                   src={product.images[0] || "/products/saree-lotus-main.jpg"}
                                   alt={product.name}
-                                  fill
-                                  sizes="44px"
-                                  style={{ objectFit: "cover" }}
                                 />
                               </div>
                               <div>
@@ -2012,13 +2147,26 @@ export default function AdminDashboardPage() {
                   Manage product categories and parent hierarchies. Active categories appear in storefront filters.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleOpenCreateCategory}
-                style={{ padding: "8px 16px", backgroundColor: "var(--btn-dark)", color: "#f7f4ee", borderRadius: "8px", border: "none", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}
-              >
-                + New Category
-              </button>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <input
+                  type="search"
+                  aria-label="Search categories"
+                  placeholder="Search categories"
+                  value={categorySearch}
+                  onChange={(event) => setCategorySearch(event.target.value)}
+                  style={{ padding: "8px 10px", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px" }}
+                />
+                <select
+                  aria-label="Filter categories by status"
+                  value={categoryStatusFilter}
+                  onChange={(event) => setCategoryStatusFilter(event.target.value as typeof categoryStatusFilter)}
+                  style={{ padding: "8px 10px", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px", background: "#fff" }}
+                >
+                  <option value="ALL">All categories</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ backgroundColor: "#fff", borderRadius: "12px", border: "1px solid var(--border-light, #e8dfd5)", overflowX: "auto" }}>
@@ -2035,14 +2183,14 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.length === 0 ? (
+                  {filteredCategories.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)" }}>
-                        No categories found. Click "+ New Category" to create your first category.
+                        No categories found for these filters.
                       </td>
                     </tr>
                   ) : (
-                    categories.map((c) => (
+                    filteredCategories.map((c) => (
                       <tr key={c.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
                         <td style={{ padding: "12px 16px", fontWeight: 600 }}>{c.name}</td>
                         <td style={{ padding: "12px 16px", fontFamily: "monospace", color: "var(--text-muted)" }}>{c.slug}</td>
@@ -2095,28 +2243,73 @@ export default function AdminDashboardPage() {
           <section>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginBottom: "28px" }}>
               <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Total Catalog SKUs</span>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Total Stock Units</span>
                 <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--text-primary)", marginTop: "6px" }}>
-                  {products.length}
+                  {inventorySummary?.totalStockUnits.toLocaleString("en-IN") ?? "—"}
                 </div>
               </div>
               <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
-                <span style={{ fontSize: "12px", color: "#b45309", textTransform: "uppercase" }}>Low Stock Warnings</span>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Inventory Value</span>
+                <div style={{ fontSize: "21px", fontWeight: 600, color: "var(--text-secondary)", marginTop: "10px" }}>
+                  {inventorySummary?.inventoryValue === null ? "Not tracked" : inventorySummary?.inventoryValue ?? "—"}
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Cost basis is not recorded for products.</p>
+              </div>
+              <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase" }}>Reserved Stock</span>
+                <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--text-primary)", marginTop: "6px" }}>
+                  {inventorySummary?.reservedStock.toLocaleString("en-IN") ?? "—"}
+                </div>
+              </div>
+              <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
+                <span style={{ fontSize: "12px", color: "#b45309", textTransform: "uppercase" }}>Low Stock Products</span>
                 <div style={{ fontSize: "28px", fontWeight: 600, color: "#b45309", marginTop: "6px" }}>
-                  {products.filter((p) => p.stockQuantity <= 2 && p.stockQuantity > 0).length}
-                </div>
-              </div>
-              <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
-                <span style={{ fontSize: "12px", color: "#b91c1c", textTransform: "uppercase" }}>Out of Stock</span>
-                <div style={{ fontSize: "28px", fontWeight: 600, color: "#b91c1c", marginTop: "6px" }}>
-                  {products.filter((p) => p.stockQuantity === 0 || p.status === "OUT_OF_STOCK").length}
+                  {inventorySummary?.lowStockProducts.toLocaleString("en-IN") ?? "—"}
                 </div>
               </div>
             </div>
 
-            <h3 className="font-serif" style={{ fontSize: "20px", marginBottom: "14px", color: "var(--text-primary)" }}>
-              Recent Audit Stock Movements
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: "12px", flexWrap: "wrap", marginBottom: "14px" }}>
+              <h3 className="font-serif" style={{ fontSize: "20px", color: "var(--text-primary)" }}>
+                Recent Audit Stock Movements
+              </h3>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setMovementPage(1);
+                  setMovementFilters({
+                    search: movementSearchInput,
+                    startDate: movementStartDateInput,
+                    endDate: movementEndDateInput,
+                  });
+                }}
+                style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
+              >
+                <input
+                  type="search"
+                  aria-label="Search stock movements"
+                  placeholder="Product, SKU, admin or reason"
+                  value={movementSearchInput}
+                  onChange={(event) => setMovementSearchInput(event.target.value)}
+                  style={{ padding: "7px 9px", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px", minWidth: "205px" }}
+                />
+                <input
+                  type="date"
+                  aria-label="Movement start date"
+                  value={movementStartDateInput}
+                  onChange={(event) => setMovementStartDateInput(event.target.value)}
+                  style={{ padding: "7px 9px", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px" }}
+                />
+                <input
+                  type="date"
+                  aria-label="Movement end date"
+                  value={movementEndDateInput}
+                  onChange={(event) => setMovementEndDateInput(event.target.value)}
+                  style={{ padding: "7px 9px", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px" }}
+                />
+                <button type="submit" style={{ padding: "7px 12px", borderRadius: "6px", background: "var(--btn-dark)", color: "#fff", fontSize: "12px" }}>Filter</button>
+              </form>
+            </div>
             <div style={{ backgroundColor: "#fff", borderRadius: "12px", border: "1px solid var(--border-light, #e8dfd5)", overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                 <thead>
@@ -2126,14 +2319,15 @@ export default function AdminDashboardPage() {
                     <th style={{ padding: "12px 16px" }}>Delta</th>
                     <th style={{ padding: "12px 16px" }}>Stock Transition</th>
                     <th style={{ padding: "12px 16px" }}>Type</th>
+                    <th style={{ padding: "12px 16px" }}>Admin</th>
                     <th style={{ padding: "12px 16px" }}>Reason & Reference</th>
                   </tr>
                 </thead>
                 <tbody>
                   {movements.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "30px 16px", textAlign: "center", color: "var(--text-muted)" }}>
-                        No inventory movements recorded yet.
+                      <td colSpan={7} style={{ padding: "30px 16px", textAlign: "center", color: "var(--text-muted)" }}>
+                        No stock movements found for these filters.
                       </td>
                     </tr>
                   ) : (
@@ -2155,6 +2349,9 @@ export default function AdminDashboardPage() {
                           {m.type}
                         </td>
                         <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>
+                          {m.reference?.startsWith("Admin:") ? m.reference.slice(6) : "—"}
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>
                           {m.reason} {m.reference && <span style={{ color: "var(--text-muted)" }}>({m.reference})</span>}
                         </td>
                       </tr>
@@ -2163,11 +2360,23 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", fontSize: "12px", color: "var(--text-muted)" }}>
+              <span>{movementTotal} movement{movementTotal === 1 ? "" : "s"}</span>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" disabled={movementPage <= 1} onClick={() => setMovementPage((page) => page - 1)} style={{ padding: "6px 10px", border: "1px solid var(--border-light)", borderRadius: "6px", background: "#fff" }}>Previous</button>
+                <span style={{ padding: "6px 2px" }}>Page {movementPage} of {Math.max(1, Math.ceil(movementTotal / 25))}</span>
+                <button type="button" disabled={movementPage >= Math.ceil(movementTotal / 25)} onClick={() => setMovementPage((page) => page + 1)} style={{ padding: "6px 10px", border: "1px solid var(--border-light)", borderRadius: "6px", background: "#fff" }}>Next</button>
+              </div>
+            </div>
           </section>
         )}
 
         {/* TAB 0: EXECUTIVE ANALYTICS */}
-        {activeTab === "analytics" && <AdminAnalyticsTab />}
+        {analyticsVisited && (
+          <div style={{ display: activeTab === "analytics" ? "contents" : "none" }}>
+            <AdminAnalyticsTab />
+          </div>
+        )}
 
         {/* TAB 5: ORDERS & LOGISTICS */}
         {activeTab === "orders" && <AdminOrdersTab />}

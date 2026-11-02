@@ -56,9 +56,6 @@ export function SiteFooter() {
               </div>
             </Link>
 
-            <p className="footer-tagline font-serif" style={{ fontSize: "1.1rem", color: "var(--text-primary)", marginTop: "12px", marginBottom: "4px" }}>
-              RASA Sampoorna
-            </p>
             <p className="footer-tagline font-sans" style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
               Art. Inclusion. Impact. Handcrafted heritage by neurodiverse artisans with dignity and living wages.
             </p>

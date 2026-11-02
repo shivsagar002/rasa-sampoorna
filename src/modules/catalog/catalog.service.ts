@@ -70,14 +70,20 @@ export class CatalogService {
   /**
    * Query catalog products with filters, sorting, search, and pagination
    */
-  async getProducts(filters: ProductFilterQuery = { page: 1, limit: 20 }) {
+  async getProducts(
+    filters: ProductFilterQuery = { page: 1, limit: 20 },
+    includeInactive = false
+  ) {
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ProductWhereInput = {
-      status: filters.status || ProductStatus.ACTIVE,
-    };
+    const where: Prisma.ProductWhereInput = {};
+    if (filters.status) {
+      where.status = filters.status;
+    } else if (!includeInactive) {
+      where.status = ProductStatus.ACTIVE;
+    }
 
     if (filters.category && filters.category !== "All") {
       where.OR = [
@@ -165,6 +171,32 @@ export class CatalogService {
         limit,
         total,
       },
+    };
+  }
+
+  async getAdminSummary() {
+    const [statusCounts, stockLevels] = await Promise.all([
+      prisma.product.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }),
+      prisma.product.findMany({
+        where: { status: { not: ProductStatus.ARCHIVED } },
+        select: { stockQuantity: true, lowStockThreshold: true },
+      }),
+    ]);
+
+    const counts = Object.fromEntries(
+      statusCounts.map((entry) => [entry.status, entry._count.id])
+    ) as Record<ProductStatus, number>;
+
+    return {
+      total: statusCounts.reduce((sum, entry) => sum + entry._count.id, 0),
+      active: counts[ProductStatus.ACTIVE] || 0,
+      drafts: counts[ProductStatus.DRAFT] || 0,
+      lowStock: stockLevels.filter(
+        (product) => product.stockQuantity <= product.lowStockThreshold
+      ).length,
     };
   }
 

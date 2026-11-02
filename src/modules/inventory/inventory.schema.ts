@@ -37,6 +37,20 @@ export const inventoryQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+export const inventoryMovementQuerySchema = z
+  .object({
+    search: z.string().trim().optional(),
+    startDate: z.string().date().optional(),
+    endDate: z.string().date().optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(25),
+  })
+  .refine(
+    (query) => !query.startDate || !query.endDate || query.startDate <= query.endDate,
+    { message: "Start date must be before or equal to end date." }
+  );
+
 export type StockAdjustmentInput = z.input<typeof stockAdjustmentSchema>;
 export type ReserveStockInput = z.input<typeof reserveStockSchema>;
 export type InventoryQuery = z.input<typeof inventoryQuerySchema>;
+export type InventoryMovementQuery = z.infer<typeof inventoryMovementQuerySchema>;

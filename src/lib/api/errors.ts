@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { logger } from "@/lib/observability/logger";
 
@@ -73,6 +74,33 @@ export function handleApiError(err: unknown): NextResponse {
       (err as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE")
   ) {
     throw err;
+  }
+
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    logger.error("[DatabaseConnectionFailure]", {
+      code: err.errorCode,
+      clientVersion: err.clientVersion,
+    });
+
+    const message =
+      process.env.NODE_ENV === "production"
+        ? "The database is temporarily unavailable. Please try again later."
+        : err.errorCode === "P1000"
+          ? "Database authentication failed. Check the username and password in DATABASE_URL."
+          : err.errorCode === "P1003"
+            ? "The configured database does not exist. Create it or correct DATABASE_URL."
+            : "Cannot reach the database. Start PostgreSQL and check the host and port in DATABASE_URL.";
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "DATABASE_UNAVAILABLE",
+          message,
+        },
+      },
+      { status: 503 }
+    );
   }
 
   // 1. Zod Validation Errors

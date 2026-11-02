@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useShop } from "@/context/shop-context";
@@ -15,6 +14,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentHash, setCurrentHash] = useState("");
   const pathname = usePathname();
   const { cartCount, wishlist } = useShop();
   const hamburgerBtnRef = useRef<HTMLButtonElement>(null);
@@ -33,6 +33,14 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const updateHash = () => setCurrentHash(window.location.hash);
+
+    updateHash();
+    window.addEventListener("hashchange", updateHash);
+    return () => window.removeEventListener("hashchange", updateHash);
+  }, [pathname]);
 
   // Prevent background scroll when mobile drawer is open
   useEffect(() => {
@@ -54,6 +62,19 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
     { label: "Contact", href: "/contact" },
     { label: "FAQ", href: "/faq" },
   ];
+
+  const isNavLinkActive = (href: string) => {
+    if (href.includes("#")) {
+      const [path, hash] = href.split("#");
+      return pathname === path && currentHash === `#${hash}`;
+    }
+
+    if (href === "/") {
+      return pathname === "/" && currentHash !== "#makers";
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <>
@@ -115,15 +136,13 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
           {/* Desktop Navigation Links */}
           <nav className="nav-links" aria-label="Main Navigation">
             {navLinks.map((link) => {
-              const isActive =
-                link.href === "/"
-                  ? pathname === "/"
-                  : pathname === link.href || pathname.startsWith(`${link.href}/`);
+              const isActive = isNavLinkActive(link.href);
               return (
                 <Link
                   key={link.label}
                   href={link.href}
                   className={`nav-link ${isActive ? "is-active" : ""}`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {link.label}
                 </Link>
@@ -155,7 +174,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
             <Link
               href="/shop"
               aria-label={`Wishlist (${wishlist.length} saved)`}
-              className="action-btn"
+              className="action-btn wishlist-action"
               style={{ position: "relative" }}
               title="Saved to Wishlist"
             >
@@ -190,7 +209,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
             <Link
               href="/cart"
               aria-label={`Shopping Bag (${cartCount} items)`}
-              className="action-btn"
+              className="action-btn cart-action"
               style={{ position: "relative" }}
             >
               <svg
@@ -231,7 +250,7 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
             <Link
               href="/account"
               aria-label="User Account"
-              className="action-btn"
+              className="action-btn account-action"
             >
               <svg
                 className="action-icon"
@@ -311,31 +330,67 @@ export function SiteHeader({ solidBackground = false }: SiteHeaderProps) {
             </button>
           </div>
 
+          <nav className="mobile-drawer-shortcuts" aria-label="Your account">
+            <Link
+              href="/shop"
+              className="mobile-drawer-shortcut"
+              aria-label={`Wishlist, ${wishlist.length} saved`}
+              onClick={closeMobileMenu}
+            >
+              <span className="mobile-drawer-shortcut-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {wishlist.length > 0 && <span className="mobile-drawer-shortcut-badge" />}
+              </span>
+              <span>Wishlist</span>
+            </Link>
+            <Link
+              href="/cart"
+              className="mobile-drawer-shortcut"
+              aria-label={`Cart, ${cartCount} items`}
+              onClick={closeMobileMenu}
+            >
+              <span className="mobile-drawer-shortcut-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                {cartCount > 0 && (
+                  <span className="mobile-drawer-shortcut-badge">{cartCount}</span>
+                )}
+              </span>
+              <span>Cart</span>
+            </Link>
+            <Link
+              href="/account"
+              className="mobile-drawer-shortcut"
+              aria-label="Account"
+              onClick={closeMobileMenu}
+            >
+              <span className="mobile-drawer-shortcut-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <span>Account</span>
+            </Link>
+          </nav>
+
           <nav className="mobile-drawer-nav">
             {navLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className="mobile-nav-link"
+                className={`mobile-nav-link ${isNavLinkActive(link.href) ? "is-active" : ""}`}
+                aria-current={isNavLinkActive(link.href) ? "page" : undefined}
                 onClick={closeMobileMenu}
               >
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/cart"
-              className="mobile-nav-link"
-              onClick={closeMobileMenu}
-            >
-              Cart ({cartCount})
-            </Link>
-            <Link
-              href="/account"
-              className="mobile-nav-link"
-              onClick={closeMobileMenu}
-            >
-              My Account / Sign In
-            </Link>
           </nav>
 
           <div className="mobile-drawer-footer">

@@ -12,18 +12,22 @@ export async function GET(req: NextRequest) {
 
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "15", 10);
-    const statusParam = searchParams.get("status") as OrderStatus | null;
-    const paymentStatusParam = searchParams.get("paymentStatus") as PaymentStatus | null;
+    const statusParam = searchParams.get("status");
+    const paymentStatusParam = searchParams.get("paymentStatus");
     const search = searchParams.get("search") || undefined;
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
 
-    const status = statusParam && Object.values(OrderStatus).includes(statusParam)
+    const status = statusParam === "SHIPPED_DELIVERED"
       ? statusParam
+      : statusParam && (Object.values(OrderStatus) as string[]).includes(statusParam)
+      ? statusParam as OrderStatus
       : undefined;
 
-    const paymentStatus = paymentStatusParam && Object.values(PaymentStatus).includes(paymentStatusParam)
+    const paymentStatus = paymentStatusParam === "AWAITING_PAYMENT"
       ? paymentStatusParam
+      : paymentStatusParam && (Object.values(PaymentStatus) as string[]).includes(paymentStatusParam)
+      ? paymentStatusParam as PaymentStatus
       : undefined;
 
     const result = await adminOrderService.listOrders({
