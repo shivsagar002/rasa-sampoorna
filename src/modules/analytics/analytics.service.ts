@@ -75,10 +75,12 @@ export interface DashboardMetricsResult {
   topProducts: Array<{
     productId: string;
     productName: string;
+    slug?: string;
     category?: string;
     unitsSold: number;
     revenue: number;
     currentStock: number;
+    lowStockThreshold: number;
     primaryImage?: string;
   }>;
   categoryPerformance: Array<{
@@ -87,9 +89,15 @@ export interface DashboardMetricsResult {
     revenue: number;
     orderCount: number;
   }>;
+  collectionPerformance: Array<{
+    collectionName: string;
+    revenue: number;
+    sharePercentage: number;
+  }>;
   lowStockAlerts: Array<{
     id: string;
     name: string;
+    slug: string;
     sku: string;
     category: string;
     stockQuantity: number;
@@ -122,23 +130,46 @@ export class AnalyticsService {
    * Strictly counts completed/captured payments as completed revenue.
    */
   private async getAggregatedFinancials(startDate: Date, endDate: Date): Promise<AnalyticsFinancials> {
-    // 1. Order Aggregation for completed payments
-    const orderAgg = await prisma.order.aggregate({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        paymentStatus: PaymentStatus.CAPTURED,
-      },
-      _sum: {
-        subtotalMinorUnits: true,
-        discountAmountMinorUnits: true,
-        shippingFeeMinorUnits: true,
-        taxAmountMinorUnits: true,
-        totalAmountMinorUnits: true,
-      },
-      _count: {
-        id: true,
-      },
-    });
+    const [orderAgg, refundAgg, unitsAgg, cancelAgg] = await Promise.all([
+      prisma.order.aggregate({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+          paymentStatus: PaymentStatus.CAPTURED,
+        },
+        _sum: {
+          subtotalMinorUnits: true,
+          discountAmountMinorUnits: true,
+          shippingFeeMinorUnits: true,
+          taxAmountMinorUnits: true,
+          totalAmountMinorUnits: true,
+        },
+        _count: { id: true },
+      }),
+      prisma.refund.aggregate({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+          status: RefundStatus.PROCESSED,
+        },
+        _sum: { amountMinorUnits: true },
+      }),
+      prisma.orderItem.aggregate({
+        where: {
+          order: {
+            createdAt: { gte: startDate, lte: endDate },
+            paymentStatus: PaymentStatus.CAPTURED,
+          },
+        },
+        _sum: { quantity: true },
+      }),
+      prisma.order.aggregate({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+          status: OrderStatus.CANCELLED,
+        },
+        _count: { id: true },
+        _sum: { totalAmountMinorUnits: true },
+      }),
+    ]);
 
     const grossSalesMinor = orderAgg._sum.subtotalMinorUnits || 0;
     const discountsMinor = orderAgg._sum.discountAmountMinorUnits || 0;
@@ -146,41 +177,8 @@ export class AnalyticsService {
     const taxesMinor = orderAgg._sum.taxAmountMinorUnits || 0;
     const paidOrderCount = orderAgg._count.id;
 
-    // 2. Processed Refunds Aggregation
-    const refundAgg = await prisma.refund.aggregate({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        status: RefundStatus.PROCESSED,
-      },
-      _sum: {
-        amountMinorUnits: true,
-      },
-    });
     const refundsMinor = refundAgg._sum.amountMinorUnits || 0;
-
-    // 3. Units Sold Aggregation
-    const unitsAgg = await prisma.orderItem.aggregate({
-      where: {
-        order: {
-          createdAt: { gte: startDate, lte: endDate },
-          paymentStatus: PaymentStatus.CAPTURED,
-        },
-      },
-      _sum: {
-        quantity: true,
-      },
-    });
     const unitsSold = unitsAgg._sum.quantity || 0;
-
-    // 4. Cancellations in period
-    const cancelAgg = await prisma.order.aggregate({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        status: OrderStatus.CANCELLED,
-      },
-      _count: { id: true },
-      _sum: { totalAmountMinorUnits: true },
-    });
     const cancelledOrderCount = cancelAgg._count.id;
     const cancelledAmountMinor = cancelAgg._sum.totalAmountMinorUnits || 0;
 
@@ -225,73 +223,126 @@ export class AnalyticsService {
     const { startDate, endDate, priorStartDate, priorEndDate } = range;
 
     // Run core financial aggregations in parallel (current vs. prior period)
+    const compareEnabled = params.compare !== false;
     const [currentFin, priorFin] = await Promise.all([
       this.getAggregatedFinancials(startDate, endDate),
-      this.getAggregatedFinancials(priorStartDate, priorEndDate),
+      compareEnabled
+        ? this.getAggregatedFinancials(priorStartDate, priorEndDate)
+        : Promise.resolve(null),
     ]);
 
     // Build KPI metric with comparisons
     const buildKpi = (curr: number, prev: number): MetricWithComparison => ({
       value: curr,
       priorValue: prev,
-      percentageChange: calculatePercentageChange(curr, prev),
+      percentageChange: compareEnabled ? calculatePercentageChange(curr, prev) : null,
     });
 
     const kpis = {
-      grossSales: buildKpi(currentFin.grossSales, priorFin.grossSales),
-      netSales: buildKpi(currentFin.netSales, priorFin.netSales),
-      paidOrderCount: buildKpi(currentFin.paidOrderCount, priorFin.paidOrderCount),
-      aov: buildKpi(currentFin.aov, priorFin.aov),
-      unitsSold: buildKpi(currentFin.unitsSold, priorFin.unitsSold),
-      discounts: buildKpi(currentFin.discounts, priorFin.discounts),
-      refunds: buildKpi(currentFin.refunds, priorFin.refunds),
-      cancellations: buildKpi(currentFin.cancelledOrderCount, priorFin.cancelledOrderCount),
+      grossSales: buildKpi(currentFin.grossSales, priorFin?.grossSales || 0),
+      netSales: buildKpi(currentFin.netSales, priorFin?.netSales || 0),
+      paidOrderCount: buildKpi(currentFin.paidOrderCount, priorFin?.paidOrderCount || 0),
+      aov: buildKpi(currentFin.aov, priorFin?.aov || 0),
+      unitsSold: buildKpi(currentFin.unitsSold, priorFin?.unitsSold || 0),
+      discounts: buildKpi(currentFin.discounts, priorFin?.discounts || 0),
+      refunds: buildKpi(currentFin.refunds, priorFin?.refunds || 0),
+      cancellations: buildKpi(currentFin.cancelledOrderCount, priorFin?.cancelledOrderCount || 0),
     };
+
+    const periodOrderWhere = {
+      createdAt: { gte: startDate, lte: endDate },
+      paymentStatus: PaymentStatus.CAPTURED,
+    };
+    const dailyOrdersPromise = prisma.order.findMany({
+      where: periodOrderWhere,
+      select: { createdAt: true, subtotalMinorUnits: true, discountAmountMinorUnits: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const dailyRefundsPromise = prisma.refund.findMany({
+      where: { createdAt: { gte: startDate, lte: endDate }, status: RefundStatus.PROCESSED },
+      select: { createdAt: true, amountMinorUnits: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const paymentGroupsPromise = prisma.payment.groupBy({
+      by: ["status"],
+      where: { createdAt: { gte: startDate, lte: endDate } },
+      _count: { id: true },
+    });
+    const topItemGroupsPromise = prisma.orderItem.groupBy({
+      by: ["productId", "productName"],
+      where: { order: periodOrderWhere },
+      _sum: { quantity: true, subtotalMinorUnits: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 6,
+    });
+    const orderItemsWithCategoryPromise = prisma.orderItem.findMany({
+      where: { order: periodOrderWhere },
+      select: {
+        subtotalMinorUnits: true,
+        quantity: true,
+        product: {
+          select: {
+            category: { select: { name: true } },
+            collections: { select: { collection: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+    const lowStockRawPromise = prisma.product.findMany({
+      where: { status: { not: "ARCHIVED" } },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        sku: true,
+        category: { select: { name: true } },
+        basePriceInMinorUnits: true,
+        stockQuantity: true,
+        lowStockThreshold: true,
+        variants: { select: { sku: true }, take: 1 },
+      },
+    });
+    const paidOrdersPromise = prisma.order.findMany({
+      where: periodOrderWhere,
+      select: { id: true, userId: true, guestEmail: true, createdAt: true },
+    });
+    const orderStatusesPromise = prisma.order.groupBy({
+      by: ["status"],
+      where: periodOrderWhere,
+      _count: { id: true },
+    });
+    const returnsInPeriodPromise = prisma.return.count({
+      where: { requestedAt: { gte: startDate, lte: endDate } },
+    });
 
     // Timeseries daily aggregation
     const buckets = generateDailyBuckets(startDate, endDate);
 
     // Efficiently query daily sums for the buckets
-    const dailyOrders = await prisma.order.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        paymentStatus: PaymentStatus.CAPTURED,
-      },
-      select: {
-        createdAt: true,
-        subtotalMinorUnits: true,
-        discountAmountMinorUnits: true,
-      },
-    });
+    const [dailyOrders, dailyRefunds] = await Promise.all([dailyOrdersPromise, dailyRefundsPromise]);
 
-    const dailyRefunds = await prisma.refund.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        status: RefundStatus.PROCESSED,
-      },
-      select: {
-        createdAt: true,
-        amountMinorUnits: true,
-      },
-    });
-
+    let orderIndex = 0;
+    let refundIndex = 0;
     const timeseries = buckets.map((bucket) => {
       let bGross = 0;
       let bDisc = 0;
       let bCount = 0;
 
-      for (const o of dailyOrders) {
-        if (o.createdAt >= bucket.start && o.createdAt <= bucket.end) {
-          bGross += o.subtotalMinorUnits;
-          bDisc += o.discountAmountMinorUnits;
+      while (orderIndex < dailyOrders.length && dailyOrders[orderIndex].createdAt <= bucket.end) {
+        const order = dailyOrders[orderIndex++];
+        if (order.createdAt >= bucket.start) {
+          bGross += order.subtotalMinorUnits;
+          bDisc += order.discountAmountMinorUnits;
           bCount++;
         }
       }
 
       let bRefund = 0;
-      for (const r of dailyRefunds) {
-        if (r.createdAt >= bucket.start && r.createdAt <= bucket.end) {
-          bRefund += r.amountMinorUnits;
+      while (refundIndex < dailyRefunds.length && dailyRefunds[refundIndex].createdAt <= bucket.end) {
+        const refund = dailyRefunds[refundIndex++];
+        if (refund.createdAt >= bucket.start) {
+          bRefund += refund.amountMinorUnits;
         }
       }
 
@@ -308,13 +359,7 @@ export class AnalyticsService {
     });
 
     // Payment Gateway Success and Failure rates
-    const paymentGroups = await prisma.payment.groupBy({
-      by: ["status"],
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      _count: { id: true },
-    });
+    const paymentGroups = await paymentGroupsPromise;
 
     let capturedCount = 0;
     let failedCount = 0;
@@ -331,33 +376,18 @@ export class AnalyticsService {
     const failureRate = totalAttempts > 0 ? Math.round((failedCount / totalAttempts) * 1000) / 10 : 0;
 
     // Top Selling Sarees
-    const topItemGroups = await prisma.orderItem.groupBy({
-      by: ["productId", "productName"],
-      where: {
-        order: {
-          createdAt: { gte: startDate, lte: endDate },
-          paymentStatus: PaymentStatus.CAPTURED,
-        },
-      },
-      _sum: {
-        quantity: true,
-        subtotalMinorUnits: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: "desc",
-        },
-      },
-      take: 6,
-    });
+    const topItemGroups = await topItemGroupsPromise;
 
     const topProductIds = topItemGroups.map((g) => g.productId).filter((id): id is string => Boolean(id));
     const productsDetails = await prisma.product.findMany({
       where: { id: { in: topProductIds } },
       select: {
         id: true,
+        slug: true,
+        status: true,
         category: { select: { name: true } },
         stockQuantity: true,
+        lowStockThreshold: true,
         images: { select: { url: true }, take: 1 },
       },
     });
@@ -368,29 +398,20 @@ export class AnalyticsService {
       return {
         productId: g.productId || "unknown",
         productName: g.productName,
+        slug: p?.status === "ACTIVE" ? p.slug : undefined,
         category: p?.category?.name || "Artisan Sarees",
         unitsSold: g._sum.quantity || 0,
         revenue: (g._sum.subtotalMinorUnits || 0) / 100,
         currentStock: p?.stockQuantity ?? 0,
+        lowStockThreshold: p?.lowStockThreshold ?? 2,
         primaryImage: p?.images?.[0]?.url || "/products/saree-lotus-main.jpg",
       };
     });
 
     // Best-Performing Categories
     const categoryCountMap = new Map<string, { unitsSold: number; revenue: number; orderCount: number }>();
-    const orderItemsWithCategory = await prisma.orderItem.findMany({
-      where: {
-        order: {
-          createdAt: { gte: startDate, lte: endDate },
-          paymentStatus: PaymentStatus.CAPTURED,
-        },
-      },
-      select: {
-        subtotalMinorUnits: true,
-        quantity: true,
-        product: { select: { category: { select: { name: true } } } },
-      },
-    });
+    const collectionRevenueMap = new Map<string, number>();
+    const orderItemsWithCategory = await orderItemsWithCategoryPromise;
 
     for (const item of orderItemsWithCategory) {
       const catName = item.product?.category?.name || "Handloom Classics";
@@ -399,6 +420,16 @@ export class AnalyticsService {
       existing.revenue += item.subtotalMinorUnits / 100;
       existing.orderCount += 1;
       categoryCountMap.set(catName, existing);
+
+      const collections = item.product?.collections.map((entry) => entry.collection.name) || [];
+      const collectionNames = collections.length > 0 ? collections : ["Unassigned"];
+      const allocatedRevenue = item.subtotalMinorUnits / 100 / collectionNames.length;
+      for (const collectionName of collectionNames) {
+        collectionRevenueMap.set(
+          collectionName,
+          (collectionRevenueMap.get(collectionName) || 0) + allocatedRevenue
+        );
+      }
     }
 
     const categoryPerformance = Array.from(categoryCountMap.entries())
@@ -411,27 +442,31 @@ export class AnalyticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 6);
 
+    const allCollectionRevenue = Array.from(collectionRevenueMap.entries())
+      .map(([collectionName, revenue]) => ({
+        collectionName,
+        revenue: Math.round(revenue * 100) / 100,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+    const totalCollectionRevenue = allCollectionRevenue.reduce((total, entry) => total + entry.revenue, 0);
+    const topCollectionRevenue = allCollectionRevenue.slice(0, 5);
+    const remainingCollectionRevenue = allCollectionRevenue.slice(5).reduce((total, entry) => total + entry.revenue, 0);
+    if (remainingCollectionRevenue > 0) {
+      topCollectionRevenue.push({
+        collectionName: "Other collections",
+        revenue: Math.round(remainingCollectionRevenue * 100) / 100,
+      });
+    }
+    const collectionPerformance = topCollectionRevenue.map((entry) => ({
+      ...entry,
+      sharePercentage:
+        totalCollectionRevenue > 0
+          ? Math.round((entry.revenue / totalCollectionRevenue) * 1000) / 10
+          : 0,
+    }));
+
     // Low-Stock Products
-    const lowStockRaw = await prisma.product.findMany({
-      where: {
-        status: { not: "ARCHIVED" },
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        sku: true,
-        category: { select: { name: true } },
-        basePriceInMinorUnits: true,
-        stockQuantity: true,
-        lowStockThreshold: true,
-        status: true,
-        variants: {
-          select: { sku: true },
-          take: 1,
-        },
-      },
-    });
+    const lowStockRaw = await lowStockRawPromise;
 
     const lowStockAlerts = lowStockRaw
       .filter((p) => p.stockQuantity <= p.lowStockThreshold)
@@ -440,6 +475,7 @@ export class AnalyticsService {
       .map((p) => ({
         id: p.id,
         name: p.name,
+        slug: p.slug,
         sku: p.sku || p.variants[0]?.sku || `RASA-${p.slug.slice(0, 4).toUpperCase()}`,
         category: p.category?.name || "Artisan Sarees",
         stockQuantity: p.stockQuantity,
@@ -449,18 +485,7 @@ export class AnalyticsService {
       }));
 
     // Customer Retention: New vs Returning Customers
-    const paidOrders = await prisma.order.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        paymentStatus: PaymentStatus.CAPTURED,
-      },
-      select: {
-        id: true,
-        userId: true,
-        guestEmail: true,
-        createdAt: true,
-      },
-    });
+    const paidOrders = await paidOrdersPromise;
 
     const distinctUserIds = Array.from(new Set(paidOrders.map((o) => o.userId).filter((id): id is string => Boolean(id))));
 
@@ -496,14 +521,7 @@ export class AnalyticsService {
       totalIdentified > 0 ? Math.round((newCustomersCount / totalIdentified) * 100) : 100;
 
     // Fulfillment & Logistics Performance
-    const orderStatuses = await prisma.order.groupBy({
-      by: ["status"],
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-        paymentStatus: PaymentStatus.CAPTURED,
-      },
-      _count: { id: true },
-    });
+    const orderStatuses = await orderStatusesPromise;
 
     const statusMap = new Map(orderStatuses.map((s) => [s.status, s._count.id]));
     const deliveredCount = statusMap.get(OrderStatus.DELIVERED) || 0;
@@ -518,11 +536,7 @@ export class AnalyticsService {
       currentFin.paidOrderCount > 0 ? Math.round((fulfilledTotal / currentFin.paidOrderCount) * 1000) / 10 : 0;
 
     // Return Count & Rate in period
-    const returnsInPeriod = await prisma.return.count({
-      where: {
-        requestedAt: { gte: startDate, lte: endDate },
-      },
-    });
+    const returnsInPeriod = await returnsInPeriodPromise;
 
     const returnRate =
       deliveredCount > 0 ? Math.round((returnsInPeriod / deliveredCount) * 1000) / 10 : 0;
@@ -557,6 +571,7 @@ export class AnalyticsService {
       },
       topProducts,
       categoryPerformance,
+      collectionPerformance,
       lowStockAlerts,
       customerBreakdown: {
         newCustomersCount,
@@ -583,7 +598,7 @@ export class AnalyticsService {
    * Protects customer PII (masks phone/email, never exposes secrets).
    */
   async exportCsvReport(params: {
-    type: "orders" | "sales" | "inventory" | "coupons" | "returns";
+    type: "orders" | "financial" | "sales" | "inventory" | "coupons" | "returns";
     preset?: AnalyticsDatePreset;
     startDate?: string;
     endDate?: string;
@@ -594,7 +609,9 @@ export class AnalyticsService {
 
     const escapeCsv = (str: any): string => {
       if (str === null || str === undefined) return "";
-      const s = String(str).replace(/"/g, '""');
+      const raw = String(str);
+      const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+      const s = safe.replace(/"/g, '""');
       return `"${s}"`;
     };
 
@@ -670,6 +687,77 @@ export class AnalyticsService {
 
         const content = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
         return { filename: `rasa-sales-summary-${dateTag}.csv`, content };
+      }
+
+      case "financial": {
+        const orders = await prisma.order.findMany({
+          where: { createdAt: { gte: startDate, lte: endDate } },
+          select: {
+            orderNumber: true,
+            createdAt: true,
+            status: true,
+            paymentStatus: true,
+            subtotalMinorUnits: true,
+            discountAmountMinorUnits: true,
+            shippingFeeMinorUnits: true,
+            taxAmountMinorUnits: true,
+            totalAmountMinorUnits: true,
+            refunds: {
+              where: { status: RefundStatus.PROCESSED },
+              select: { amountMinorUnits: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5000,
+        });
+
+        const headers = [
+          "Order Number",
+          "Date (UTC)",
+          "Order Status",
+          "Payment Status",
+          "Gross Revenue (INR)",
+          "Discounts (INR)",
+          "GST (INR)",
+          "Shipping (INR)",
+          "Processed Refunds (INR)",
+          "Net Sales (INR)",
+          "Total Billed (INR)",
+          "Net Collected (INR)",
+          "Gateway Fees (Not Tracked)",
+          "Settlement (Not Tracked)",
+        ];
+        const rows = orders.map((order) => {
+          const refundsMinor = order.refunds.reduce((sum, refund) => sum + refund.amountMinorUnits, 0);
+          const collectedMinor =
+            order.paymentStatus === PaymentStatus.CAPTURED ||
+            order.paymentStatus === PaymentStatus.REFUNDED
+              ? Math.max(0, order.totalAmountMinorUnits - refundsMinor)
+              : 0;
+          const netSalesMinor = Math.max(
+            0,
+            order.subtotalMinorUnits - order.discountAmountMinorUnits - refundsMinor
+          );
+          return [
+            escapeCsv(order.orderNumber),
+            escapeCsv(order.createdAt.toISOString().slice(0, 19).replace("T", " ")),
+            escapeCsv(order.status),
+            escapeCsv(order.paymentStatus),
+            escapeCsv((order.subtotalMinorUnits / 100).toFixed(2)),
+            escapeCsv((order.discountAmountMinorUnits / 100).toFixed(2)),
+            escapeCsv((order.taxAmountMinorUnits / 100).toFixed(2)),
+            escapeCsv((order.shippingFeeMinorUnits / 100).toFixed(2)),
+            escapeCsv((refundsMinor / 100).toFixed(2)),
+            escapeCsv((netSalesMinor / 100).toFixed(2)),
+            escapeCsv((order.totalAmountMinorUnits / 100).toFixed(2)),
+            escapeCsv((collectedMinor / 100).toFixed(2)),
+            "",
+            "",
+          ];
+        });
+
+        const content = [headers.map(escapeCsv).join(","), ...rows.map((row) => row.join(","))].join("\n");
+        return { filename: `rasa-financial-settlement-${dateTag}.csv`, content };
       }
 
       case "inventory": {

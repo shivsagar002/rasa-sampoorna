@@ -140,7 +140,7 @@ export default function ContactPage() {
         >
           {/* Left Column: Get In Touch + Message Form */}
           <div>
-            <div style={{ marginBottom: "36px" }}>
+            <div className="contact-intro" style={{ marginBottom: "36px" }}>
               <span
                 style={{
                   fontSize: "12px",
@@ -178,8 +178,9 @@ export default function ContactPage() {
                   color: "var(--text-secondary)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="contact-info-row" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span
+                    className="contact-info-icon"
                     style={{
                       width: "32px",
                       height: "32px",
@@ -215,8 +216,9 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="contact-info-row" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span
+                    className="contact-info-icon"
                     style={{
                       width: "32px",
                       height: "32px",
@@ -255,8 +257,9 @@ export default function ContactPage() {
                   </a>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="contact-info-row" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span
+                    className="contact-info-icon"
                     style={{
                       width: "32px",
                       height: "32px",
@@ -299,6 +302,7 @@ export default function ContactPage() {
                 {["Facebook", "Instagram", "Twitter", "LinkedIn"].map((platform) => (
                   <span
                     key={platform}
+                    className="contact-social-chip"
                     style={{
                       padding: "6px 14px",
                       borderRadius: "9999px",
@@ -318,6 +322,7 @@ export default function ContactPage() {
 
             {/* Send Us A Message Form */}
             <div
+              className="contact-form-panel"
               style={{
                 backgroundColor: "#fff",
                 borderRadius: "20px",
@@ -561,9 +566,10 @@ export default function ContactPage() {
           </div>
 
           {/* Right Column: Visual Artwork Card + FAQ Accordion */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+          <div className="contact-aside" style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
             {/* Visual Card (as in mockup) */}
             <div
+              className="contact-artwork-panel"
               style={{
                 position: "relative",
                 aspectRatio: "16 / 10",
@@ -582,6 +588,7 @@ export default function ContactPage() {
                 style={{ objectFit: "cover" }}
               />
               <div
+                className="contact-faq-panel"
                 style={{
                   position: "absolute",
                   bottom: "16px",
@@ -643,6 +650,7 @@ export default function ContactPage() {
                 {faqs.map((faq, idx) => (
                   <div
                     key={idx}
+                    className="contact-faq-item"
                     style={{
                       borderBottom:
                         idx === faqs.length - 1
@@ -670,11 +678,12 @@ export default function ContactPage() {
                         color: "var(--text-primary)",
                         cursor: "pointer",
                       }}
-                      className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8c7355] rounded-xs"
+                      className="contact-faq-trigger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8c7355] rounded-xs"
                     >
                       <span style={{ paddingRight: "12px" }}>{faq.q}</span>
                       <span
                         aria-hidden="true"
+                        className="contact-faq-toggle"
                         style={{
                           fontSize: "18px",
                           color: "var(--text-muted)",
@@ -689,6 +698,7 @@ export default function ContactPage() {
                     {activeFaq === idx && (
                       <div
                         id={`contact-faq-answer-${idx}`}
+                        className="contact-faq-answer"
                         role="region"
                         aria-labelledby={`contact-faq-btn-${idx}`}
                       >

@@ -24,13 +24,29 @@ interface OrderSummary {
     courier?: string;
     trackingNumber?: string;
     trackingUrl?: string;
+    estimatedDeliveryAt?: string | null;
+    isDelayed?: boolean;
   } | null;
   hasReturns: boolean;
   returnCount: number;
 }
 
+interface OrdersDashboardSummary {
+  total: number;
+  pendingPayments: number;
+  processing: number;
+  shippedDelivered: number;
+}
+
+function csvCell(value: string | number) {
+  const text = String(value);
+  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
 export function AdminOrdersTab() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [summary, setSummary] = useState<OrdersDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +55,12 @@ export function AdminOrdersTab() {
   const [paymentFilter, setPaymentFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState("PROCESSING");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Selected Order for Inspection
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -60,13 +81,14 @@ export function AdminOrdersTab() {
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewingReturn, setReviewingReturn] = useState(false);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (requestedPage = page) => {
     try {
       setLoading(true);
       setError(null);
+      setSelectedOrderIds([]);
       const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", "15");
+      params.set("page", String(requestedPage));
+      params.set("limit", String(rowsPerPage));
       if (statusFilter !== "ALL") params.set("status", statusFilter);
       if (paymentFilter !== "ALL") params.set("paymentStatus", paymentFilter);
       if (search.trim()) params.set("search", search.trim());
@@ -89,12 +111,105 @@ export function AdminOrdersTab() {
 
   useEffect(() => {
     fetchOrders();
-  }, [page, statusFilter, paymentFilter]);
+  }, [page, statusFilter, paymentFilter, rowsPerPage]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/v1/admin/orders/summary")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || "Failed to load order totals.");
+        if (active) setSummary(data.data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load order totals.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchOrders();
+    if (page === 1) fetchOrders(1);
+  };
+
+  const exportOrdersCsv = async () => {
+    if (selectedOrderIds.length > 0) {
+      const selectedOrders = orders.filter((order) => selectedOrderIds.includes(order.id));
+      const header = ["Order Number", "Created At", "Status", "Payment Status", "Item Count", "Subtotal (INR)", "Shipping (INR)", "Total (INR)"];
+      const rows = selectedOrders.map((order) => [
+        order.orderNumber,
+        new Date(order.createdAt).toISOString(),
+        order.status,
+        order.paymentStatus,
+        order.itemCount,
+        order.subtotal.toFixed(2),
+        order.shippingFee.toFixed(2),
+        order.totalAmount.toFixed(2),
+      ]);
+      const content = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rasa-orders-selected.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    try {
+      setExportLoading(true);
+      setActionMessage(null);
+      const params = new URLSearchParams();
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (paymentFilter !== "ALL") params.set("paymentStatus", paymentFilter);
+      if (search.trim()) params.set("search", search.trim());
+      const response = await fetch(`/api/v1/admin/orders/export?${params.toString()}`);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || "Failed to export filtered orders.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rasa-orders-filtered.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setActionMessage({
+        text: err instanceof Error ? err.message : "Failed to export filtered orders.",
+        isError: true,
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    if (!selectedOrderIds.length) return;
+    setBulkLoading(true);
+    setActionMessage(null);
+    try {
+      const response = await fetch("/api/v1/admin/orders/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: selectedOrderIds, status: bulkStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || "Bulk order update failed.");
+      setSelectedOrderIds([]);
+      setActionMessage({ text: data.message || "Selected orders updated." });
+      await fetchOrders();
+    } catch (err: unknown) {
+      setActionMessage({ text: err instanceof Error ? err.message : "Bulk order update failed.", isError: true });
+    } finally {
+      setBulkLoading(false);
+    }
   };
 
   const openOrderDetails = async (orderId: string) => {
@@ -233,6 +348,24 @@ export function AdminOrdersTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
+        {[
+          { label: "Total Orders", value: summary?.total, onClick: () => { setStatusFilter("ALL"); setPaymentFilter("ALL"); setPage(1); } },
+          { label: "Pending Payments", value: summary?.pendingPayments, onClick: () => { setStatusFilter("ALL"); setPaymentFilter("AWAITING_PAYMENT"); setPage(1); } },
+          { label: "Processing", value: summary?.processing, onClick: () => { setStatusFilter("PROCESSING"); setPaymentFilter("ALL"); setPage(1); } },
+          { label: "Shipped / Delivered", value: summary?.shippedDelivered, onClick: () => { setStatusFilter("SHIPPED_DELIVERED"); setPaymentFilter("ALL"); setPage(1); } },
+        ].map((card) => (
+          <button
+            key={card.label}
+            type="button"
+            onClick={card.onClick}
+            style={{ textAlign: "left", background: "#fff", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "14px 16px", cursor: "pointer" }}
+          >
+            <span style={{ display: "block", color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase" }}>{card.label}</span>
+            <span style={{ display: "block", marginTop: "5px", fontSize: "24px", fontWeight: 600, color: "var(--text-primary)" }}>{card.value ?? "—"}</span>
+          </button>
+        ))}
+      </div>
       {/* Filter Bar */}
       <div
         style={{
@@ -301,6 +434,7 @@ export function AdminOrdersTab() {
               <option value="CONFIRMED">Confirmed</option>
               <option value="PROCESSING">Processing</option>
               <option value="SHIPPED">Shipped</option>
+              <option value="SHIPPED_DELIVERED">Shipped / In Transit / Delivered</option>
               <option value="DELIVERED">Delivered</option>
               <option value="CANCELLED">Cancelled</option>
               <option value="REFUNDED">Refunded</option>
@@ -326,6 +460,7 @@ export function AdminOrdersTab() {
             >
               <option value="ALL">All Payments</option>
               <option value="PENDING">Pending</option>
+              <option value="AWAITING_PAYMENT">Pending / Authorized</option>
               <option value="CAPTURED">Captured (Paid)</option>
               <option value="FAILED">Failed</option>
               <option value="REFUNDED">Refunded</option>
@@ -334,13 +469,49 @@ export function AdminOrdersTab() {
         </div>
       </div>
 
+      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ marginRight: "auto", color: "var(--text-muted)", fontSize: "12px" }}>
+          {selectedOrderIds.length ? `${selectedOrderIds.length} selected` : `${orders.length} orders on this page`}
+        </span>
+        <label style={{ display: "flex", gap: "6px", alignItems: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+          Rows
+          <select
+            value={rowsPerPage}
+            onChange={(event) => { setRowsPerPage(Number(event.target.value)); setPage(1); }}
+            style={{ padding: "6px 8px", borderRadius: "6px", border: "1px solid var(--border-light)", background: "#fff" }}
+          >
+            {[10, 15, 25, 50].map((count) => <option key={count} value={count}>{count}</option>)}
+          </select>
+        </label>
+        {selectedOrderIds.length > 0 && (
+          <>
+            <select
+              aria-label="Bulk order status"
+              value={bulkStatus}
+              onChange={(event) => setBulkStatus(event.target.value)}
+              style={{ padding: "7px 9px", borderRadius: "6px", border: "1px solid var(--border-light)", background: "#fff", fontSize: "12px" }}
+            >
+              {["CONFIRMED", "PROCESSING"].map((status) => (
+                <option key={status} value={status}>{status.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+            <button type="button" disabled={bulkLoading} onClick={handleBulkStatusUpdate} style={{ padding: "8px 11px", background: "var(--btn-dark)", color: "#fff", borderRadius: "6px", fontSize: "12px" }}>
+              {bulkLoading ? "Updating..." : "Update selected"}
+            </button>
+          </>
+        )}
+        <button type="button" disabled={!orders.length || exportLoading} onClick={exportOrdersCsv} style={{ padding: "8px 11px", background: "#fff", border: "1px solid var(--border-light)", borderRadius: "6px", fontSize: "12px" }}>
+          {exportLoading ? "Exporting..." : `Export CSV ${selectedOrderIds.length ? "selected" : "filtered"}`}
+        </button>
+      </div>
+
       {/* Orders Table */}
       <div
         style={{
           backgroundColor: "#ffffff",
           borderRadius: "16px",
           border: "1px solid var(--border-light, #e8dfd5)",
-          overflow: "hidden",
+          overflowX: "auto",
         }}
       >
         {loading ? (
@@ -354,9 +525,22 @@ export function AdminOrdersTab() {
             No orders found matching the filter criteria.
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table style={{ width: "100%", minWidth: "960px", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ backgroundColor: "var(--bg-cream, #f7f4ee)", textAlign: "left", borderBottom: "1px solid var(--border-light)" }}>
+                <th style={{ padding: "14px 12px", width: "38px" }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all orders on this page"
+                    checked={orders.length > 0 && orders.every((order) => selectedOrderIds.includes(order.id))}
+                    onChange={(event) => {
+                      const pageIds = orders.map((order) => order.id);
+                      setSelectedOrderIds((selected) => event.target.checked
+                        ? Array.from(new Set([...selected, ...pageIds]))
+                        : selected.filter((id) => !pageIds.includes(id)));
+                    }}
+                  />
+                </th>
                 <th style={{ padding: "14px 20px", fontWeight: 600 }}>Order #</th>
                 <th style={{ padding: "14px 16px", fontWeight: 600 }}>Date</th>
                 <th style={{ padding: "14px 16px", fontWeight: 600 }}>Customer</th>
@@ -370,6 +554,16 @@ export function AdminOrdersTab() {
             <tbody>
               {orders.map((ord) => (
                 <tr key={ord.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                  <td style={{ padding: "14px 12px" }}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select order ${ord.orderNumber}`}
+                      checked={selectedOrderIds.includes(ord.id)}
+                      onChange={(event) => setSelectedOrderIds((selected) => event.target.checked
+                        ? [...selected, ord.id]
+                        : selected.filter((id) => id !== ord.id))}
+                    />
+                  </td>
                   <td style={{ padding: "14px 20px", fontWeight: 600 }}>
                     {ord.orderNumber}
                     {ord.hasReturns && (
@@ -417,6 +611,17 @@ export function AdminOrdersTab() {
                     {ord.shipment?.trackingNumber ? (
                       <div>
                         <div style={{ fontWeight: 500 }}>{ord.shipment.courier}</div>
+                        <div style={{
+                          fontSize: "11px",
+                          color: ord.shipment.isDelayed ? "#b91c1c" : "var(--text-muted)",
+                          fontWeight: ord.shipment.isDelayed ? 600 : 400,
+                        }}>
+                          {ord.shipment.status.replace(/_/g, " ")}
+                          {ord.shipment.estimatedDeliveryAt
+                            ? ` · ETA ${new Date(ord.shipment.estimatedDeliveryAt).toLocaleDateString("en-IN")}`
+                            : ""}
+                          {ord.shipment.isDelayed ? " · Delayed" : ""}
+                        </div>
                         <a
                           href={ord.shipment.trackingUrl || `https://shiprocket.co/tracking/${ord.shipment.trackingNumber}`}
                           target="_blank"

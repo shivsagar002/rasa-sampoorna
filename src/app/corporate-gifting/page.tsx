@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "@/components/navigation/site-header";
@@ -8,7 +8,74 @@ import { MobileBottomBar } from "@/components/navigation/mobile-bottom-bar";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { CORPORATE_PACKAGES } from "@/data/products";
 
+const CORPORATE_HERO_SLIDES = [
+  {
+    id: "thoughtful-gifting",
+    eyebrow: "Corporate Gifting",
+    title: "Gifts that mean more.",
+    description:
+      "Thoughtful gifting for teams, clients, celebrations and special occasions. Every hamper is handcrafted with love by women artisans and differently-abled creators.",
+    image: "/images/corporate_hero_hamper.jpg",
+    imageAlt: "Handcrafted keepsake hamper for corporate gifting",
+  },
+  {
+    id: "artisan-crafted",
+    eyebrow: "Made with care",
+    title: "Thoughtfully made, beautifully given.",
+    description:
+      "Share meaningful keepsakes, artisan-made treats and thoughtful details with the people who make your work special.",
+    image: "/images/corporate_hamper_craft.jpg",
+    imageAlt: "Artisan-crafted keepsake hamper with handmade gifts",
+  },
+  {
+    id: "celebrate-together",
+    eyebrow: "For every occasion",
+    title: "Make every celebration memorable.",
+    description:
+      "Celebrate milestones and festive moments with carefully curated hampers, made by hand and ready to make someone smile.",
+    image: "/images/corporate_festive_box.jpg",
+    imageAlt: "Festive corporate gift box with handcrafted keepsakes",
+  },
+];
+
+const CORPORATE_CUSTOMIZATIONS = [
+  {
+    id: "branding",
+    title: "Branded Sleeves & Logos",
+    description:
+      "Custom corporate logo placement on packaging sleeves, belly bands, and festive ribbon tags.",
+  },
+  {
+    id: "greeting",
+    title: "Personalized Greeting Cards",
+    description:
+      "Hand-signed artisan message cards, custom-printed leadership letters, and signature wax seals.",
+  },
+  {
+    id: "artisan",
+    title: "Curated Artisan Inclusions",
+    description:
+      "Flexible item combinations: original framed miniature paintings, botanical candles, or brass bells.",
+  },
+  {
+    id: "keepsake",
+    title: "Keepsake Chests & Boxes",
+    description:
+      "Choice of solid walnut wood keepsake chests, engraved pine boxes, or reusable unbleached cotton pouches.",
+  },
+];
+
+const CORPORATE_PACKAGE_MOBILE_DESCRIPTIONS: Record<string, string> = {
+  "pkg-01": "Miniature art, soy candle, tea and brass keepsake.",
+  "pkg-02": "Walnut keepsake box with scenic art, honey and artisan treats.",
+  "pkg-03": "Festive box with flowers, diya, sweets and candle.",
+};
+
 export default function CorporateGiftingPage() {
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
+  const [revealedPackageIds, setRevealedPackageIds] =
+    useState<Set<string> | null>(null);
   const [selectedOption, setSelectedOption] = useState<string>("Curated Hampers");
   const [selectedPackage, setSelectedPackage] = useState<
     (typeof CORPORATE_PACKAGES)[0] | null
@@ -28,6 +95,64 @@ export default function CorporateGiftingPage() {
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (
+      isHeroPaused ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveHeroSlide((current) => (current + 1) % CORPORATE_HERO_SLIDES.length);
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isHeroPaused]);
+
+  useEffect(() => {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>(
+      ".corporate-packages-grid .package-card"
+    ));
+
+    if (cards.length === 0) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const revealVisiblePackages = () => {
+      const visiblePackageIds = new Set(
+        cards
+          .filter(
+            (card) => card.getBoundingClientRect().top < window.innerHeight * 0.92
+          )
+          .map((card) => card.dataset.packageId)
+          .filter((id): id is string => Boolean(id))
+      );
+
+      setRevealedPackageIds((current) => {
+        if (current === null) return visiblePackageIds;
+        let next: Set<string> | null = null;
+        visiblePackageIds.forEach((id) => {
+          if (current.has(id)) return;
+          next ??= new Set(current);
+          next.add(id);
+        });
+        return next ?? current;
+      });
+    };
+
+    revealVisiblePackages();
+    window.addEventListener("scroll", revealVisiblePackages, { passive: true });
+    window.addEventListener("resize", revealVisiblePackages);
+
+    return () => {
+      window.removeEventListener("scroll", revealVisiblePackages);
+      window.removeEventListener("resize", revealVisiblePackages);
+    };
+  }, []);
 
   const validateField = (name: string, value: string) => {
     switch (name) {
@@ -120,7 +245,7 @@ export default function CorporateGiftingPage() {
           padding: "32px 20px 80px",
         }}
       >
-        {/* Hero Section (as shown in desktop and mobile mockups) */}
+        {/* Hero Section */}
         <section
           style={{
             backgroundColor: "#fff",
@@ -131,6 +256,20 @@ export default function CorporateGiftingPage() {
             boxShadow: "0 10px 40px rgba(0,0,0,0.03)",
           }}
           className="corporate-hero-card"
+          aria-label="Corporate gifting highlights"
+          aria-roledescription="carousel"
+          onMouseEnter={() => setIsHeroPaused(true)}
+          onMouseLeave={() => setIsHeroPaused(false)}
+          onFocusCapture={() => setIsHeroPaused(true)}
+          onBlurCapture={(event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
+            ) {
+              return;
+            }
+            setIsHeroPaused(false);
+          }}
         >
           <div
             style={{
@@ -142,6 +281,8 @@ export default function CorporateGiftingPage() {
           >
             {/* Left Narrative */}
             <div
+              key={CORPORATE_HERO_SLIDES[activeHeroSlide].id}
+              className="corporate-hero-copy"
               style={{
                 padding: "clamp(32px, 5vw, 64px)",
                 display: "flex",
@@ -159,7 +300,7 @@ export default function CorporateGiftingPage() {
                   marginBottom: "12px",
                 }}
               >
-                Corporate Gifting
+                {CORPORATE_HERO_SLIDES[activeHeroSlide].eyebrow}
               </span>
 
               <h1
@@ -172,7 +313,7 @@ export default function CorporateGiftingPage() {
                   marginBottom: "16px",
                 }}
               >
-                Gifts that mean more.
+                {CORPORATE_HERO_SLIDES[activeHeroSlide].title}
               </h1>
 
               <p
@@ -184,12 +325,10 @@ export default function CorporateGiftingPage() {
                   maxWidth: "460px",
                 }}
               >
-                Thoughtful gifting for teams, clients, celebrations and special
-                occasions. Every hamper is handcrafted with love by women
-                artisans and differently-abled creators.
+                {CORPORATE_HERO_SLIDES[activeHeroSlide].description}
               </p>
 
-              <div>
+              <div className="corporate-hero-cta">
                 <button
                   type="button"
                   onClick={() => setIsEnquiryModalOpen(true)}
@@ -207,10 +346,27 @@ export default function CorporateGiftingPage() {
                   Enquire for Corporate Gifts
                 </button>
               </div>
+              <div className="corporate-hero-pagination" aria-label="Choose a banner">
+                {CORPORATE_HERO_SLIDES.map((slide, index) => (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    aria-label={`Show banner ${index + 1}: ${slide.title}`}
+                    aria-current={activeHeroSlide === index ? "true" : undefined}
+                    onClick={() => setActiveHeroSlide(index)}
+                    className={
+                      activeHeroSlide === index
+                        ? "corporate-hero-dot is-active"
+                        : "corporate-hero-dot"
+                    }
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Right Visual (High Res Hamper) */}
             <div
+              className="corporate-hero-visual"
               style={{
                 position: "relative",
                 aspectRatio: "16 / 11",
@@ -221,15 +377,47 @@ export default function CorporateGiftingPage() {
               }}
             >
               <Image
-                src="/images/corporate_hero_hamper.jpg"
-                alt="Luxury Corporate Gifting Hamper Box"
+                key={CORPORATE_HERO_SLIDES[activeHeroSlide].image}
+                src={CORPORATE_HERO_SLIDES[activeHeroSlide].image}
+                alt={CORPORATE_HERO_SLIDES[activeHeroSlide].imageAlt}
                 fill
-                priority
+                priority={activeHeroSlide === 0}
                 sizes="(max-width: 768px) 100vw, 50vw"
+                className="corporate-hero-image"
                 style={{ objectFit: "cover" }}
               />
             </div>
           </div>
+          <button
+            type="button"
+            className="corporate-hero-control corporate-hero-control-previous"
+            aria-label="Show previous banner"
+            onClick={() =>
+              setActiveHeroSlide(
+                (current) =>
+                  (current - 1 + CORPORATE_HERO_SLIDES.length) %
+                  CORPORATE_HERO_SLIDES.length
+              )
+            }
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="corporate-hero-control corporate-hero-control-next"
+            aria-label="Show next banner"
+            onClick={() =>
+              setActiveHeroSlide(
+                (current) => (current + 1) % CORPORATE_HERO_SLIDES.length
+              )
+            }
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
         </section>
 
         {/* "Our Gifting Options" Pill Tabs */}
@@ -251,6 +439,7 @@ export default function CorporateGiftingPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
               gap: "14px",
             }}
+            className="corporate-gifting-options-grid"
           >
             {giftingOptions.map((opt) => (
               <button
@@ -307,7 +496,10 @@ export default function CorporateGiftingPage() {
             >
               Featured Gift Packages
             </h2>
-            <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+            <span
+              className="corporate-packages-note"
+              style={{ fontSize: "14px", color: "var(--text-muted)" }}
+            >
               Custom branding available for 25+ boxes
             </span>
           </div>
@@ -321,9 +513,10 @@ export default function CorporateGiftingPage() {
             }}
             className="corporate-packages-grid"
           >
-            {CORPORATE_PACKAGES.map((pkg) => (
+            {CORPORATE_PACKAGES.map((pkg, index) => (
               <div
                 key={pkg.id}
+                data-package-id={pkg.id}
                 style={{
                   backgroundColor: "#fff",
                   borderRadius: "20px",
@@ -333,9 +526,15 @@ export default function CorporateGiftingPage() {
                   display: "flex",
                   flexDirection: "column",
                   height: "100%",
-                  transition: "transform 0.25s ease, box-shadow 0.25s ease",
+                  transition:
+                    "transform 0.3s ease, box-shadow 0.3s ease, opacity 0.6s ease",
+                  transitionDelay: `${index * 100}ms`,
                 }}
-                className="package-card"
+                className={
+                  revealedPackageIds === null || revealedPackageIds.has(pkg.id)
+                    ? "package-card is-visible"
+                    : "package-card is-pending"
+                }
               >
                 {/* Photo Frame */}
                 <div
@@ -350,12 +549,14 @@ export default function CorporateGiftingPage() {
                     alt={pkg.name}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    className="package-card-image"
                     style={{ objectFit: "cover" }}
                   />
                 </div>
 
                 {/* Details */}
                 <div
+                  className="package-card-details"
                   style={{
                     padding: "24px",
                     display: "flex",
@@ -364,6 +565,7 @@ export default function CorporateGiftingPage() {
                   }}
                 >
                   <div
+                    className="package-card-heading"
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -387,12 +589,14 @@ export default function CorporateGiftingPage() {
                         fontWeight: 700,
                         color: "var(--accent-gold)",
                       }}
+                      className="package-card-price"
                     >
                       {pkg.priceStart}
                     </span>
                   </div>
 
                   <p
+                    className="package-card-description package-card-description-full"
                     style={{
                       fontSize: "14px",
                       lineHeight: 1.6,
@@ -403,8 +607,16 @@ export default function CorporateGiftingPage() {
                   >
                     {pkg.description}
                   </p>
+                  <p
+                    className="package-card-description package-card-description-mobile"
+                    aria-hidden="true"
+                  >
+                    {CORPORATE_PACKAGE_MOBILE_DESCRIPTIONS[pkg.id] ??
+                      pkg.description}
+                  </p>
 
                   <div
+                    className="package-card-inclusions"
                     style={{
                       fontSize: "12px",
                       color: "var(--accent-gold, #8c7355)",
@@ -416,6 +628,7 @@ export default function CorporateGiftingPage() {
                   </div>
 
                   <div
+                    className="package-card-actions"
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -496,102 +709,49 @@ export default function CorporateGiftingPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
               gap: "20px",
             }}
+            className="corporate-customization-grid"
           >
-            <div
-              style={{
-                backgroundColor: "#fff",
-                border: "1px solid var(--border-light, #e8dfd5)",
-                borderRadius: "16px",
-                padding: "22px 20px",
-              }}
-            >
-              <h3
-                className="font-serif"
-                style={{
-                  fontSize: "17px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: "8px",
-                }}
+            {CORPORATE_CUSTOMIZATIONS.map((option) => (
+              <article
+                key={option.id}
+                className="corporate-customization-card"
               >
-                Branded Sleeves &amp; Logos
-              </h3>
-              <p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary)" }}>
-                Custom corporate logo placement on packaging sleeves, belly bands, and festive ribbon tags.
-              </p>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: "#fff",
-                border: "1px solid var(--border-light, #e8dfd5)",
-                borderRadius: "16px",
-                padding: "22px 20px",
-              }}
-            >
-              <h3
-                className="font-serif"
-                style={{
-                  fontSize: "17px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: "8px",
-                }}
-              >
-                Personalized Greeting Cards
-              </h3>
-              <p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary)" }}>
-                Hand-signed artisan message cards, custom-printed leadership letters, and signature wax seals.
-              </p>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: "#fff",
-                border: "1px solid var(--border-light, #e8dfd5)",
-                borderRadius: "16px",
-                padding: "22px 20px",
-              }}
-            >
-              <h3
-                className="font-serif"
-                style={{
-                  fontSize: "17px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: "8px",
-                }}
-              >
-                Curated Artisan Inclusions
-              </h3>
-              <p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary)" }}>
-                Flexible item combinations: original framed miniature paintings, botanical candles, or brass bells.
-              </p>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: "#fff",
-                border: "1px solid var(--border-light, #e8dfd5)",
-                borderRadius: "16px",
-                padding: "22px 20px",
-              }}
-            >
-              <h3
-                className="font-serif"
-                style={{
-                  fontSize: "17px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: "8px",
-                }}
-              >
-                Keepsake Chests &amp; Boxes
-              </h3>
-              <p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary)" }}>
-                Choice of solid walnut wood keepsake chests, engraved pine boxes, or reusable unbleached cotton pouches.
-              </p>
-            </div>
+                <span className="corporate-customization-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    {option.id === "branding" && (
+                      <>
+                        <path d="M4 8.5 12 4l8 4.5-8 4.5-8-4.5Z" />
+                        <path d="M4 8.5v7L12 20l8-4.5v-7M12 13v7" />
+                        <path d="m9.5 7.5 5 2.8" />
+                      </>
+                    )}
+                    {option.id === "greeting" && (
+                      <>
+                        <rect x="3.5" y="5" width="17" height="14" rx="2" />
+                        <path d="m4.5 7 7.5 6 7.5-6" />
+                        <path d="M12 10.5s-1.6-1.4-2.7-.3c-1.1 1.1.1 2.5 2.7 4 2.6-1.5 3.8-2.9 2.7-4-1.1-1.1-2.7.3-2.7.3Z" />
+                      </>
+                    )}
+                    {option.id === "artisan" && (
+                      <>
+                        <path d="M19.5 4.5c-7.5 0-13 3.7-13 9.5a5.5 5.5 0 0 0 5.5 5.5c5.8 0 9.5-5.5 9.5-13V4.5h-2Z" />
+                        <path d="M4 20c2.5-4 5.8-7.1 10-9.5" />
+                        <path d="M7.5 14.5h4M12 10.5v4" />
+                      </>
+                    )}
+                    {option.id === "keepsake" && (
+                      <>
+                        <path d="M3.5 9 12 4l8.5 5v10H3.5V9Z" />
+                        <path d="M3.5 9h17M8 9v4h8V9M12 13v6" />
+                        <path d="M10 15.5h4" />
+                      </>
+                    )}
+                  </svg>
+                </span>
+                <h3 className="font-serif">{option.title}</h3>
+                <p>{option.description}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -633,6 +793,7 @@ export default function CorporateGiftingPage() {
               gap: "24px",
               marginBottom: "32px",
             }}
+            className="corporate-order-process-grid"
           >
             {/* Step 1 */}
             <div
@@ -644,18 +805,10 @@ export default function CorporateGiftingPage() {
                 display: "flex",
                 flexDirection: "column",
               }}
+              className="corporate-order-step"
             >
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "var(--accent-gold, #8c7355)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "12px",
-                }}
-              >
-                Step 01
+              <span className="corporate-order-step-number" aria-label="Step 1">
+                1
               </span>
               <h3
                 className="font-serif"
@@ -689,18 +842,10 @@ export default function CorporateGiftingPage() {
                 display: "flex",
                 flexDirection: "column",
               }}
+              className="corporate-order-step"
             >
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "var(--accent-gold, #8c7355)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "12px",
-                }}
-              >
-                Step 02
+              <span className="corporate-order-step-number" aria-label="Step 2">
+                2
               </span>
               <h3
                 className="font-serif"
@@ -734,18 +879,10 @@ export default function CorporateGiftingPage() {
                 display: "flex",
                 flexDirection: "column",
               }}
+              className="corporate-order-step"
             >
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "var(--accent-gold, #8c7355)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "12px",
-                }}
-              >
-                Step 03
+              <span className="corporate-order-step-number" aria-label="Step 3">
+                3
               </span>
               <h3
                 className="font-serif"
@@ -799,7 +936,7 @@ export default function CorporateGiftingPage() {
         {/* "Custom Gifting" CTA Banner Card */}
         <section
           style={{
-            backgroundColor: "#FAF7F2",
+            backgroundColor: "#30352f",
             border: "1px solid var(--border-light, #e8dfd5)",
             borderRadius: "24px",
             padding: "48px 36px",
@@ -811,15 +948,16 @@ export default function CorporateGiftingPage() {
             position: "relative",
             overflow: "hidden",
           }}
+          className="corporate-custom-gifting-banner"
         >
-          <div>
+          <div className="corporate-custom-gifting-content">
             <span
               style={{
                 fontSize: "12px",
                 fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                color: "var(--accent-gold)",
+                color: "#e1c49b",
               }}
             >
               Custom Gifting
@@ -828,14 +966,14 @@ export default function CorporateGiftingPage() {
               className="font-serif"
               style={{
                 fontSize: "clamp(26px, 3.5vw, 36px)",
-                color: "var(--text-primary)",
+                color: "#fff",
                 marginTop: "6px",
                 marginBottom: "8px",
               }}
             >
               Tell us about your corporate gifting needs
             </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: "15px" }}>
+            <p style={{ color: "rgba(255,255,255,0.88)", fontSize: "15px" }}>
               Tailored curation, customized artwork motifs, corporate logos, and
               direct doorstep dispatch.
             </p>

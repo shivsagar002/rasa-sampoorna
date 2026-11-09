@@ -64,6 +64,10 @@ export function MakingProcessSection() {
         <div className="process-steps-container">
           {STEPS.map((step, index) => (
             <div key={step.stepNumber} className="process-step-item">
+              <div className="process-number-badge font-serif" aria-hidden="true">
+                {step.stepNumber}
+              </div>
+
               {/* Step Image Card */}
               <div className="process-image-wrapper">
                 <Image
@@ -77,7 +81,10 @@ export function MakingProcessSection() {
 
               {/* Step Info */}
               <div className="process-info">
-                <div className="process-number-badge font-serif">{step.stepNumber}. {step.title}</div>
+                <h3 className="process-step-title font-serif">
+                  <span className="process-title-number">{step.stepNumber}. </span>
+                  {step.title}
+                </h3>
                 <p className="process-subtitle font-sans">{step.subtitle}</p>
               </div>
 

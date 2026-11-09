@@ -206,7 +206,19 @@ describe("Admin Analytics & Reporting Suite", () => {
         { status: PaymentStatus.FAILED, _count: { id: 2 } },
       ] as any);
       vi.mocked(prisma.orderItem.groupBy).mockResolvedValue([]);
-      vi.mocked(prisma.orderItem.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.orderItem.findMany).mockResolvedValue([
+        {
+          subtotalMinorUnits: 10000,
+          quantity: 1,
+          product: {
+            category: { name: "Kanjivaram" },
+            collections: [
+              { collection: { name: "Bridal" } },
+              { collection: { name: "Festive" } },
+            ],
+          },
+        },
+      ] as any);
       vi.mocked(prisma.product.findMany).mockResolvedValue([]);
       vi.mocked(prisma.order.groupBy).mockResolvedValue([]);
       vi.mocked(prisma.return.count).mockResolvedValue(1);
@@ -235,6 +247,10 @@ describe("Admin Analytics & Reporting Suite", () => {
       // Gateway Success Rate: 10 captured out of 12 attempts => 83.3%
       expect(res.gatewayPerformance.successRate).toBe(83.3);
       expect(res.gatewayPerformance.failureRate).toBe(16.7);
+      expect(res.collectionPerformance).toEqual([
+        { collectionName: "Bridal", revenue: 50, sharePercentage: 50 },
+        { collectionName: "Festive", revenue: 50, sharePercentage: 50 },
+      ]);
     });
 
     it("never includes pending or failed orders in completed revenue", async () => {
@@ -254,7 +270,7 @@ describe("Admin Analytics & Reporting Suite", () => {
       vi.mocked(prisma.order.groupBy).mockResolvedValue([]);
       vi.mocked(prisma.return.count).mockResolvedValue(0);
 
-      await analyticsService.getDashboardAnalytics({ preset: "today" });
+      const analytics = await analyticsService.getDashboardAnalytics({ preset: "today", compare: false });
 
       expect(prisma.order.aggregate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -263,6 +279,8 @@ describe("Admin Analytics & Reporting Suite", () => {
           }),
         })
       );
+      expect(prisma.order.aggregate).toHaveBeenCalledTimes(2);
+      expect(analytics.kpis.grossSales.percentageChange).toBeNull();
     });
   });
 
@@ -297,6 +315,32 @@ describe("Admin Analytics & Reporting Suite", () => {
       expect(report.content).toContain('"RASA-2026-1001"');
       expect(report.content).toContain('"Radha Sharma"');
       expect(report.content).toContain('"8500.00"'); // Rupee format
+    });
+
+    it("exports order-level financial breakdowns from recorded orders and processed refunds", async () => {
+      vi.mocked(prisma.order.findMany).mockResolvedValue([
+        {
+          orderNumber: "=2+2",
+          createdAt: new Date("2026-10-22T10:00:00.000Z"),
+          status: OrderStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.CAPTURED,
+          subtotalMinorUnits: 100000,
+          discountAmountMinorUnits: 10000,
+          shippingFeeMinorUnits: 500,
+          taxAmountMinorUnits: 4500,
+          totalAmountMinorUnits: 95000,
+          refunds: [{ amountMinorUnits: 5000 }],
+        },
+      ] as any);
+
+      const report = await analyticsService.exportCsvReport({ type: "financial", preset: "last_7_days" });
+
+      expect(report.filename).toContain("rasa-financial-settlement");
+      expect(report.content).toContain('"\'=2+2"');
+      expect(report.content).toContain('"850.00"');
+      expect(report.content).toContain('"900.00"');
+      expect(report.content).toContain("Gateway Fees (Not Tracked)");
+      expect(report.content).toContain("Settlement (Not Tracked)");
     });
 
     it("generates live inventory report with stock threshold alerts", async () => {

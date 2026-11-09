@@ -7,6 +7,7 @@ import { BotanicalBranch } from "./botanical-decor";
 interface BenefitItem {
   id: string;
   title: string;
+  mobileTitle: string;
   icon: (props: { className?: string }) => React.JSX.Element;
 }
 
@@ -14,6 +15,7 @@ const BENEFITS: BenefitItem[] = [
   {
     id: "curated",
     title: "Curated gifts & hampers",
+    mobileTitle: "Curated hampers",
     icon: ({ className = "w-5 h-5" }) => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
         <polyline points="20 12 20 22 4 22 4 12" />
@@ -27,6 +29,7 @@ const BENEFITS: BenefitItem[] = [
   {
     id: "packaging",
     title: "Custom packaging & personal notes",
+    mobileTitle: "Custom packaging",
     icon: ({ className = "w-5 h-5" }) => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -38,6 +41,7 @@ const BENEFITS: BenefitItem[] = [
   {
     id: "bulk",
     title: "Bulk orders for events & festivals",
+    mobileTitle: "Bulk orders",
     icon: ({ className = "w-5 h-5" }) => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
         <circle cx="9" cy="21" r="1" />
@@ -107,10 +111,22 @@ export function CorporateGiftingSection() {
                     <span className="benefit-icon-wrapper" aria-hidden="true">
                       <Icon className="w-4 h-4 text-charcoal" />
                     </span>
-                    <span className="benefit-text">{benefit.title}</span>
+                    <span className="benefit-text">
+                      <span className="gifting-benefit-desktop">{benefit.title}</span>
+                      <span className="gifting-benefit-mobile">{benefit.mobileTitle}</span>
+                    </span>
                   </li>
                 );
               })}
+              <li className="gifting-benefit-item gifting-mobile-benefit">
+                <span className="benefit-icon-wrapper" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-4 h-4">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                  </svg>
+                </span>
+                <span className="gifting-benefit-mobile">Personal notes</span>
+              </li>
             </ul>
 
             <div className="gifting-cta-row">

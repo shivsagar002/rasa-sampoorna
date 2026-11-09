@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./minimal-discovery-sections.module.css";
+import { useShop } from "@/context/shop-context";
+import { PRODUCTS } from "@/data/products";
 
 // 1. Shop by Collection definitions using existing assets & categories
 const COLLECTIONS = [
@@ -75,6 +77,31 @@ const FEATURED_PRODUCTS = [
 
 export function MinimalDiscoverySections() {
   const [cmsData, setCmsData] = useState<any>(null);
+  const [addedSlug, setAddedSlug] = useState<string | null>(null);
+  const [productsInView, setProductsInView] = useState(false);
+  const productsRef = useRef<HTMLDivElement>(null);
+  const { addToCart } = useShop();
+
+  useEffect(() => {
+    const node = productsRef.current;
+    if (!node) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setProductsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setProductsInView(true);
+        observer.disconnect();
+      },
+      { threshold: 0.08 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,6 +120,10 @@ export function MinimalDiscoverySections() {
 
   const showCategories = cmsData?.featuredCategories?.isVisible !== false;
   const showProducts = cmsData?.featuredProducts?.isVisible !== false;
+  const collectionTitle = cmsData?.featuredCategories?.title || "Shop by Collection";
+  const collectionWords = collectionTitle.trim().split(/\s+/);
+  const collectionAccent = collectionWords.length > 1 ? collectionWords.pop() : "";
+  const collectionLead = collectionWords.join(" ");
 
   return (
     <div className={styles.discoveryWrapper}>
@@ -102,8 +133,14 @@ export function MinimalDiscoverySections() {
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <span className={styles.eyebrow}>OUR COLLECTIONS</span>
-              <h2 className={styles.headline}>
-                {cmsData?.featuredCategories?.title || "Shop by Collection"}
+              <h2 className={`${styles.headline} ${styles.collectionHeadline}`}>
+                {collectionLead}
+                {collectionAccent ? (
+                  <>
+                    {" "}
+                    <span className={styles.headlineAccent}>{collectionAccent}</span>
+                  </>
+                ) : null}
               </h2>
               <p className={styles.description}>
                 {cmsData?.featuredCategories?.subtitle || "Explore handcrafted creations made by our artisan collective."}
@@ -126,7 +163,8 @@ export function MinimalDiscoverySections() {
                   <h3 className={styles.collectionTitle}>{col.name}</h3>
                   <p className={styles.collectionDesc}>{col.description}</p>
                   <span className={styles.collectionLink}>
-                    Explore Collection →
+                    Explore Collection
+                    <span className={styles.collectionArrow} aria-hidden="true">→</span>
                   </span>
                 </div>
               </Link>
@@ -138,7 +176,7 @@ export function MinimalDiscoverySections() {
 
       {/* 2. FEATURED PRODUCTS */}
       {showProducts && (
-      <section id="discovery-featured-products" className={styles.section} aria-label="Featured Products">
+      <section id="discovery-featured-products" className={`${styles.section} ${styles.featuredSection}`} aria-label="Featured Products">
         <div className={styles.container}>
           <div className={styles.sectionHeaderRow}>
             <div>
@@ -155,27 +193,51 @@ export function MinimalDiscoverySections() {
             </Link>
           </div>
 
-          <div className={styles.productsGrid}>
-            {FEATURED_PRODUCTS.map((prod) => (
-              <Link key={prod.id} href={`/shop/${prod.slug}`} className={styles.productCard}>
+          <div ref={productsRef} className={styles.productsGrid}>
+            {FEATURED_PRODUCTS.map((prod, index) => (
+              <div
+                key={prod.id}
+                className={`${styles.productReveal} ${productsInView ? styles.productRevealIn : ""}`}
+                style={{ transitionDelay: `${index * 90}ms` }}
+              >
+              <article className={styles.productCard}>
                 <div className={styles.productImageFrame}>
-                  <Image
-                    src={prod.image}
-                    alt={prod.name}
-                    fill
-                    sizes="(max-width: 480px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    className={styles.productImg}
-                  />
+                  <Link href={`/shop/${prod.slug}`} className={styles.productImageLink} aria-label={prod.name}>
+                    <Image
+                      src={prod.image}
+                      alt={prod.name}
+                      fill
+                      sizes="(max-width: 480px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className={styles.productImg}
+                    />
+                  </Link>
+                  <button
+                    type="button"
+                    className={styles.addToCartBtn}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      const product = PRODUCTS.find((item) => item.slug === prod.slug);
+                      if (!product) return;
+                      void addToCart(product, 1);
+                      setAddedSlug(prod.slug);
+                      window.setTimeout(() => {
+                        setAddedSlug((current) => (current === prod.slug ? null : current));
+                      }, 1600);
+                    }}
+                  >
+                    {addedSlug === prod.slug ? "Added" : "Add to Cart"}
+                  </button>
                 </div>
-                <div className={styles.productContent}>
+                <Link href={`/shop/${prod.slug}`} className={styles.productContent}>
                   <span className={styles.productCategory}>{prod.category}</span>
                   <h3 className={styles.productTitle}>{prod.name}</h3>
                   <div className={styles.productPriceRow}>
                     <span className={styles.productPrice}>{prod.priceFormatted}</span>
                     <span className={styles.productLinkText}>View Product →</span>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </article>
+              </div>
             ))}
           </div>
         </div>
@@ -186,14 +248,29 @@ export function MinimalDiscoverySections() {
       <section id="discovery-corporate-gifting" className={styles.section} aria-label="Corporate Gifting">
         <div className={styles.container}>
           <div className={styles.splitRow}>
-            <div className={styles.splitImageCol}>
-              <Image
-                src="/landing/corporate_gift_box_v2.webp"
-                alt="Artisan corporate gift hamper"
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className={styles.splitImg}
-              />
+            <div className={`${styles.splitImageCol} ${styles.giftStage}`}>
+              <div className={styles.giftMainFrame}>
+                <Image
+                  src="/landing/corporate_gift_box_v2.webp"
+                  alt="Artisan corporate gift hamper"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className={styles.splitImg}
+                />
+              </div>
+              <div className={styles.giftBadge}>
+                <span className={styles.giftBadgeValue}>150+</span>
+                <span className={styles.giftBadgeLabel}>Artisans supported</span>
+              </div>
+              <div className={styles.giftFloatCard}>
+                <Image
+                  src="/products/corporate_hamper_craft.jpg"
+                  alt="A curated artisan gift hamper"
+                  fill
+                  sizes="180px"
+                  className={styles.splitImg}
+                />
+              </div>
             </div>
             <div className={styles.splitContentCol}>
               <span className={styles.eyebrow}>BESPOKE GIFTING</span>
@@ -223,14 +300,17 @@ export function MinimalDiscoverySections() {
                 Learn About Our Story →
               </Link>
             </div>
-            <div className={styles.splitImageCol}>
-              <Image
-                src="/landing/artisans_collage_v2.webp"
-                alt="Artisans at work at RASA Sampoorna"
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className={styles.splitImg}
-              />
+            <div className={`${styles.splitImageCol} ${styles.craftStage}`}>
+              <span className={styles.craftDots} aria-hidden="true" />
+              <div className={styles.craftFrame}>
+                <Image
+                  src="/landing/artisans_collage_v2.webp"
+                  alt="Artisans at work at RASA Sampoorna"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className={styles.splitImg}
+                />
+              </div>
             </div>
           </div>
         </div>

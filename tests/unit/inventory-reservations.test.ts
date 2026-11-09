@@ -11,6 +11,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     productVariant: {
       findUnique: vi.fn(),
@@ -113,6 +114,28 @@ describe("Inventory Management & Reservation Concurrency Tests", () => {
       expect(prisma.product.update).toHaveBeenCalledWith({
         where: { id: "prod-1" },
         data: { stockQuantity: 0, status: ProductStatus.OUT_OF_STOCK },
+      });
+    });
+
+    it("reports physical and reserved units without inventing inventory cost", async () => {
+      vi.mocked(prisma.product.aggregate).mockResolvedValue({
+        _sum: { stockQuantity: 18 },
+      } as any);
+      vi.mocked(prisma.inventoryReservation.aggregate).mockResolvedValue({
+        _sum: { quantity: 3 },
+      } as any);
+      vi.mocked(prisma.product.findMany).mockResolvedValue([
+        { stockQuantity: 1, lowStockThreshold: 2 },
+        { stockQuantity: 6, lowStockThreshold: 2 },
+      ] as any);
+
+      const result = await inventoryService.getInventorySummary();
+
+      expect(result).toEqual({
+        totalStockUnits: 18,
+        reservedStock: 3,
+        lowStockProducts: 1,
+        inventoryValue: null,
       });
     });
   });

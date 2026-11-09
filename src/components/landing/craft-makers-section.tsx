@@ -57,7 +57,10 @@ export function CraftMakersSection() {
               </a>
             </div>
 
-            {/* Desktop Editorial Quote Card */}
+          </div>
+
+          <div className="makers-followup-col">
+            {/* Editorial Quote Card */}
             <div className="makers-quote-card">
               <span className="quote-mark" aria-hidden="true">“</span>
               <p className="quote-text font-serif">
@@ -66,7 +69,7 @@ export function CraftMakersSection() {
               <div className="quote-divider" />
             </div>
 
-            {/* Impact Metrics Badges (Featured on Mobile & Desktop) */}
+            {/* Impact Metrics */}
             <div className="makers-impact-stats">
               <div className="impact-stat-item">
                 <div className="impact-stat-icon">
@@ -89,7 +92,10 @@ export function CraftMakersSection() {
                     <line x1="15" y1="9" x2="15.01" y2="9" />
                   </svg>
                 </div>
-                <div className="impact-stat-label">Differently-abled Children</div>
+                <div className="impact-stat-label">
+                  <span className="impact-stat-label-desktop">Differently-abled Children</span>
+                  <span className="impact-stat-label-mobile">Inclusive Growth</span>
+                </div>
               </div>
 
               <div className="impact-stat-item">

@@ -2,8 +2,58 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { AnalyticsDatePreset } from "@/modules/analytics/date-utils";
 import { DashboardMetricsResult } from "@/modules/analytics/analytics.service";
+
+const COLLECTION_REVENUE_PALETTE = ["#802a2a", "#2e3830", "#b89d6c", "#5a6d5c", "#a85d48", "#8c7d70"];
+
+function getCollectionRevenueColor(name: string) {
+  const hash = Array.from(name).reduce((total, character) => total + character.charCodeAt(0), 0);
+  return COLLECTION_REVENUE_PALETTE[hash % COLLECTION_REVENUE_PALETTE.length];
+}
+
+function AnalyticsProductImage({ src, alt }: { src: string; alt: string }) {
+  const [imageSrc, setImageSrc] = useState(src);
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      fill
+      sizes="48px"
+      onError={() => setImageSrc("/products/saree-lotus-main.jpg")}
+      style={{ objectFit: "cover" }}
+    />
+  );
+}
+
+function AnalyticsDashboardSkeleton() {
+  const blockStyle = (height: number): React.CSSProperties => ({
+    height,
+    borderRadius: "8px",
+    border: "1px solid #e8dfd5",
+    background: "linear-gradient(100deg, #fff 20%, #f2ede6 40%, #fff 60%)",
+    backgroundSize: "200% 100%",
+    animation: "admin-analytics-shimmer 1.4s ease-in-out infinite",
+  });
+
+  return (
+    <div role="status" aria-label="Loading analytics dashboard" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      <span className="sr-only">Loading analytics and overview</span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px" }}>
+        {Array.from({ length: 8 }, (_, index) => <div key={index} style={blockStyle(82)} />)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "14px" }}>
+        <div style={blockStyle(280)} />
+        <div style={blockStyle(280)} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "14px" }}>
+        <div style={blockStyle(230)} />
+        <div style={blockStyle(230)} />
+      </div>
+    </div>
+  );
+}
 
 export function AdminAnalyticsTab() {
   const [preset, setPreset] = useState<AnalyticsDatePreset>("last_30_days");
@@ -72,6 +122,100 @@ export function AdminAnalyticsTab() {
       params.set("endDate", customEnd);
     }
     return `/api/v1/admin/analytics/export?${params.toString()}`;
+  };
+
+  const exportFinancialPdf = () => {
+    if (!data) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) {
+      setError("Allow pop-ups for this site to print or save the financial report as a PDF.");
+      return;
+    }
+
+    const financialRows = [
+      ["Gross Product Sales", "Subtotals of captured paid orders", formatRupees(data.financialSummary.grossSales)],
+      ["(-) Promotional Discounts", "Coupons & campaigns", `- ${formatRupees(data.financialSummary.discounts)}`],
+      ["(-) Processed Returns & Refunds", "Disbursed refunds", `- ${formatRupees(data.financialSummary.refunds)}`],
+      ["= Net Merchandise Sales", "Gross - Discounts - Refunds", formatRupees(data.financialSummary.netSales)],
+      ["(+) Shipping Charges Billed", "Delivery charges collected", `+ ${formatRupees(data.financialSummary.shippingFees)}`],
+      ["(+) GST Tax (5%)", "CGST + SGST on silk textiles", `+ ${formatRupees(data.financialSummary.taxes)}`],
+      ["Total Cash Settled / Retained", "Net Sales + Shipping + Taxes", formatRupees(data.financialSummary.totalCollected)],
+    ];
+    const escapeHtml = (value: string) =>
+      value.replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] || character);
+    const rows = financialRows
+      .map(([lineItem, formula, amount]) =>
+        `<tr><td>${escapeHtml(lineItem)}</td><td>${escapeHtml(formula)}</td><td class="amount">${escapeHtml(amount)}</td></tr>`
+      )
+      .join("");
+
+    printWindow.onload = () => printWindow.print();
+    printWindow.document.write(`<!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <title>RASA Financial Waterfall - ${escapeHtml(data.period.label)}</title>
+          <style>
+            body { font: 14px Arial, sans-serif; color: #2c2621; margin: 36px; }
+            h1 { font: bold 22px Georgia, serif; margin: 0 0 8px; }
+            p { color: #6f6258; margin: 0 0 22px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 11px 9px; text-align: left; border-bottom: 1px solid #e8dfd5; }
+            th { color: #5a4e44; }
+            .amount { text-align: right; white-space: nowrap; }
+            tr:nth-last-child(4) { font-weight: bold; color: #205a3c; }
+            tr:last-child { font-weight: bold; background: #f7f4ee; }
+            @media print { body { margin: 18mm; } }
+          </style>
+        </head>
+        <body>
+          <h1>GAAP Financial Waterfall &amp; Settlement</h1>
+          <p>Reporting period: ${escapeHtml(data.period.label)}</p>
+          <table>
+            <thead><tr><th>Line Item</th><th>Formula</th><th class="amount">Amount (INR)</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>`);
+    printWindow.document.close();
+    printWindow.focus();
+  };
+
+  const exportFinancialCsv = () => {
+    if (!data) return;
+
+    const csvCell = (value: string | number) => {
+      const text = String(value);
+      const safeText = typeof value === "string" && /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${safeText.replace(/"/g, '""')}"`;
+    };
+    const toMinorPrecision = (amount: number) => Math.round(amount * 100) / 100;
+    const rows: Array<Array<string | number>> = [
+      ["Financial Waterfall & Settlement", data.period.label, ""],
+      ["Line Item", "Formula", "Amount (INR)"],
+      ["Gross Product Sales", "Subtotals of captured paid orders", toMinorPrecision(data.financialSummary.grossSales)],
+      ["(-) Promotional Discounts", "Coupons & campaigns", toMinorPrecision(-data.financialSummary.discounts)],
+      ["(-) Processed Returns & Refunds", "Disbursed refunds", toMinorPrecision(-data.financialSummary.refunds)],
+      ["= Net Merchandise Sales", "Gross - Discounts - Refunds", toMinorPrecision(data.financialSummary.netSales)],
+      ["(+) Shipping Charges Billed", "Delivery charges collected", toMinorPrecision(data.financialSummary.shippingFees)],
+      ["(+) GST Tax (5%)", "CGST + SGST on silk textiles", toMinorPrecision(data.financialSummary.taxes)],
+      ["Total Cash Settled / Retained", "Net Sales + Shipping + Taxes", toMinorPrecision(data.financialSummary.totalCollected)],
+    ];
+    const content = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rasa-financial-waterfall-${data.period.startDate.slice(0, 10)}-to-${data.period.endDate.slice(0, 10)}.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const formatRupees = (amount: number) => {
@@ -223,6 +367,7 @@ export function AdminAnalyticsTab() {
               >
                 {[
                   { type: "orders", label: "Orders (Sanitized)" },
+                  { type: "financial", label: "Order-wise Finance & Refunds" },
                   { type: "sales", label: "Daily Sales Summary" },
                   { type: "inventory", label: "Live Inventory & Stock" },
                   { type: "coupons", label: "Coupon Performance" },
@@ -340,40 +485,16 @@ export function AdminAnalyticsTab() {
       )}
 
       {/* Loading Skeleton */}
-      {loading && (
-        <div
-          style={{
-            padding: "30px 16px",
-            textAlign: "center",
-            backgroundColor: "#fff",
-            borderRadius: "8px",
-            border: "1px solid #e8dfd5",
-          }}
-        >
-          <div
-            style={{
-              width: "24px",
-              height: "24px",
-              margin: "0 auto 8px",
-              border: "2px solid #802a2a",
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-            }}
-          />
-          <p style={{ fontSize: "12px", color: "#5a4e44", margin: 0 }}>
-            Aggregating transactional records and financial summaries...
-          </p>
-        </div>
-      )}
+      {loading && !data && <AnalyticsDashboardSkeleton />}
 
       {/* Data Loaded Display */}
-      {!loading && data && (
+      {data && (
         <>
           {/* Active Period Label */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "12px", color: "#5a4e44" }}>
               Active Window: <strong>{data.period.label}</strong>
+              {loading && <span role="status" style={{ marginLeft: "10px", color: "#8c7d70" }}>Updating…</span>}
             </span>
             {compare && (
               <span style={{ fontSize: "11px", color: "#8c7d70" }}>
@@ -384,6 +505,7 @@ export function AdminAnalyticsTab() {
 
           {/* 1. Compact Financial KPI Cards Grid */}
           <div
+            className="admin-analytics-card-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
@@ -534,7 +656,7 @@ export function AdminAnalyticsTab() {
           </div>
 
           {/* 2. Interactive Charts Section */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "14px", alignItems: "start" }}>
+          <div className="admin-analytics-card-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "14px", alignItems: "start" }}>
             {/* Chart A: Multi-Style Timeline (Area Line / Bar / Order Count) */}
             <div
               style={{
@@ -844,8 +966,7 @@ export function AdminAnalyticsTab() {
               {/* Radial SVG Donut */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 0" }}>
                 {(() => {
-                  const palette = ["#802a2a", "#2e3830", "#b89d6c", "#5a6d5c", "#a85d48", "#8c7d70"];
-                  const total = data.categoryPerformance.reduce((acc, c) => acc + c.revenue, 0) || 1;
+                  const total = data.collectionPerformance.reduce((acc, collection) => acc + collection.revenue, 0) || 1;
                   const radius = 45;
                   const strokeWidth = 14;
                   const circumference = 2 * Math.PI * radius;
@@ -856,16 +977,16 @@ export function AdminAnalyticsTab() {
                     <div style={{ position: "relative", width: "120px", height: "120px" }}>
                       <svg width="120" height="120" viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
                         <circle cx="60" cy="60" r={radius} fill="none" stroke="#f0e9e1" strokeWidth={strokeWidth} />
-                        {data.categoryPerformance.map((cat, idx) => {
-                          const pct = cat.revenue / total;
+                        {data.collectionPerformance.map((collection) => {
+                          const pct = collection.revenue / total;
                           const strokeDasharray = `${pct * circumference} ${circumference}`;
                           const strokeDashoffset = -accumulatedPercent * circumference;
                           accumulatedPercent += pct;
-                          const color = palette[idx % palette.length];
+                          const color = getCollectionRevenueColor(collection.collectionName);
 
                           return (
                             <circle
-                              key={cat.categoryName}
+                              key={collection.collectionName}
                               cx="60"
                               cy="60"
                               r={radius}
@@ -904,18 +1025,16 @@ export function AdminAnalyticsTab() {
 
               {/* Legend List */}
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px" }}>
-                {data.categoryPerformance.slice(0, 4).map((cat, idx) => {
-                  const palette = ["#802a2a", "#2e3830", "#b89d6c", "#5a6d5c", "#a85d48"];
-                  const total = data.categoryPerformance.reduce((acc, c) => acc + c.revenue, 0) || 1;
-                  const pct = Math.round((cat.revenue / total) * 100);
-
+                {data.collectionPerformance.map((collection) => {
                   return (
-                    <div key={cat.categoryName} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={collection.collectionName} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: palette[idx % palette.length] }} />
-                        <span style={{ color: "#2c2621", fontWeight: 500 }}>{cat.categoryName}</span>
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: getCollectionRevenueColor(collection.collectionName), flexShrink: 0 }} />
+                        <span style={{ color: "#2c2621", fontWeight: 500 }}>{collection.collectionName}</span>
                       </div>
-                      <span style={{ color: "#5a4e44", fontWeight: 600 }}>{pct}%</span>
+                      <span style={{ color: "#5a4e44", fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {formatRupees(collection.revenue)} · {collection.sharePercentage}%
+                      </span>
                     </div>
                   );
                 })}
@@ -925,6 +1044,7 @@ export function AdminAnalyticsTab() {
 
           {/* 3. Two-Column Operational Section */}
           <div
+            className="admin-analytics-card-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
@@ -971,24 +1091,31 @@ export function AdminAnalyticsTab() {
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               <div
                                 style={{
-                                  width: "28px",
-                                  height: "36px",
+                                  width: "48px",
+                                  height: "60px",
                                   position: "relative",
-                                  borderRadius: "4px",
+                                  borderRadius: "6px",
                                   overflow: "hidden",
                                   backgroundColor: "#f7f4ee",
                                   flexShrink: 0,
                                 }}
                               >
-                                <Image
+                                <AnalyticsProductImage
                                   src={p.primaryImage || "/products/saree-lotus-main.jpg"}
                                   alt={p.productName}
-                                  fill
-                                  style={{ objectFit: "cover" }}
                                 />
                               </div>
                               <div>
-                                <div style={{ fontWeight: 600, color: "#2c2621" }}>{p.productName}</div>
+                                {p.slug ? (
+                                  <Link
+                                    href={`/shop/${encodeURIComponent(p.slug)}`}
+                                    style={{ fontWeight: 600, color: "#2c2621", textDecoration: "none" }}
+                                  >
+                                    {p.productName}
+                                  </Link>
+                                ) : (
+                                  <div style={{ fontWeight: 600, color: "#2c2621" }}>{p.productName}</div>
+                                )}
                                 <div style={{ fontSize: "10px", color: "#8c7d70" }}>{p.category}</div>
                               </div>
                             </div>
@@ -998,18 +1125,30 @@ export function AdminAnalyticsTab() {
                             {formatRupees(p.revenue)}
                           </td>
                           <td style={{ padding: "8px", textAlign: "right" }}>
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                padding: "2px 5px",
-                                borderRadius: "3px",
-                                backgroundColor: p.currentStock <= 2 ? "#fdf2f2" : "#f0f7f2",
-                                color: p.currentStock <= 2 ? "#842029" : "#205a3c",
-                                fontWeight: 500,
-                              }}
-                            >
-                              {p.currentStock} left
-                            </span>
+                            {p.currentStock <= p.lowStockThreshold ? (
+                              <span
+                                role="status"
+                                title={p.currentStock === 0
+                                  ? "Out of stock"
+                                  : `Low stock: ${p.currentStock} remaining; reorder threshold is ${p.lowStockThreshold}`}
+                                style={{
+                                  display: "inline-block",
+                                  fontSize: "10px",
+                                  padding: "3px 6px",
+                                  borderRadius: "4px",
+                                  backgroundColor: "#fdf2f2",
+                                  color: "#842029",
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {p.currentStock === 0 ? "Out of stock" : `Low · ${p.currentStock} left`}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "11px", color: "#5a4e44", whiteSpace: "nowrap" }}>
+                                {p.currentStock} left
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1017,6 +1156,61 @@ export function AdminAnalyticsTab() {
                   </table>
                 </div>
               )}
+
+              <div
+                style={{
+                  marginTop: "14px",
+                  padding: "12px",
+                  borderRadius: "7px",
+                  border: `1px solid ${data.lowStockAlerts.length ? "#f0c7c7" : "#dce9df"}`,
+                  backgroundColor: data.lowStockAlerts.length ? "#fffafa" : "#f7fbf8",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <h4 style={{ margin: 0, color: "#2c2621", fontSize: "12px", fontWeight: 700 }}>
+                    Inventory warnings
+                  </h4>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: data.lowStockAlerts.length ? "#842029" : "#205a3c",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {data.lowStockAlerts.length} {data.lowStockAlerts.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                {data.lowStockAlerts.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: "11px", color: "#5a4e44" }}>
+                    No products are at or below their reorder threshold.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {data.lowStockAlerts.map((product) => (
+                      <li
+                        key={product.id}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", fontSize: "11px" }}
+                      >
+                        {product.status === "ACTIVE" ? (
+                          <Link
+                            href={`/shop/${encodeURIComponent(product.slug)}`}
+                            style={{ color: "#842029", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "2px" }}
+                          >
+                            {product.name}
+                          </Link>
+                        ) : (
+                          <span style={{ color: "#842029", fontWeight: 600 }}>{product.name}</span>
+                        )}
+                        <span style={{ color: "#842029", whiteSpace: "nowrap" }}>
+                          {product.stockQuantity === 0
+                            ? "Out of stock"
+                            : `${product.stockQuantity} left · threshold ${product.lowStockThreshold}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             {/* Column B: Order Status & Logistics Health */}
@@ -1121,6 +1315,7 @@ export function AdminAnalyticsTab() {
 
           {/* 4. Financial Statement Waterfall Table (Compact) */}
           <div
+            className="admin-analytics-hover-card"
             style={{
               backgroundColor: "#fff",
               padding: "16px 18px",
@@ -1128,13 +1323,55 @@ export function AdminAnalyticsTab() {
               border: "1px solid #e8dfd5",
             }}
           >
-            <div style={{ marginBottom: "10px" }}>
-              <h3 className="font-serif" style={{ fontSize: "15px", color: "#2c2621", margin: 0 }}>
-                GAAP Financial Waterfall &amp; Settlement
-              </h3>
-              <span style={{ fontSize: "11px", color: "#8c7d70" }}>
-                Strict reconciliation: Gross product revenue, discounts, returns, GST taxes, and shipping
-              </span>
+            <div style={{ marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
+              <div>
+                <h3 className="font-serif" style={{ fontSize: "15px", color: "#2c2621", margin: 0 }}>
+                  GAAP Financial Waterfall &amp; Settlement
+                </h3>
+                <span style={{ fontSize: "11px", color: "#8c7d70" }}>
+                  Strict reconciliation: Gross product revenue, discounts, returns, GST taxes, and shipping
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={exportFinancialCsv}
+                  disabled={!data || loading}
+                  style={{
+                    padding: "7px 12px",
+                    backgroundColor: "#fff",
+                    border: "1px solid #e8dfd5",
+                    borderRadius: "5px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--text-primary, #2c2621)",
+                    cursor: !data || loading ? "not-allowed" : "pointer",
+                    opacity: !data || loading ? 0.6 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={exportFinancialPdf}
+                  disabled={!data || loading}
+                  style={{
+                    padding: "7px 12px",
+                    backgroundColor: "#fff",
+                    border: "1px solid #e8dfd5",
+                    borderRadius: "5px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--text-primary, #2c2621)",
+                    cursor: !data || loading ? "not-allowed" : "pointer",
+                    opacity: !data || loading ? 0.6 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Export PDF
+                </button>
+              </div>
             </div>
 
             <div style={{ overflowX: "auto" }}>

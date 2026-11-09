@@ -4,6 +4,7 @@ import { StockAdjustmentInput, ReserveStockInput, InventoryQuery } from "./inven
 import {
   InventoryMovementType,
   InventoryReservationStatus,
+  Prisma,
   ProductStatus,
 } from "@prisma/client";
 
@@ -371,13 +372,62 @@ export class InventoryService {
     };
   }
 
+  async getInventorySummary() {
+    const now = new Date();
+    const [stock, reservations, stockLevels] = await Promise.all([
+      prisma.product.aggregate({ _sum: { stockQuantity: true } }),
+      prisma.inventoryReservation.aggregate({
+        where: {
+          status: InventoryReservationStatus.PENDING,
+          expiresAt: { gt: now },
+        },
+        _sum: { quantity: true },
+      }),
+      prisma.product.findMany({
+        where: { status: { not: ProductStatus.ARCHIVED } },
+        select: { stockQuantity: true, lowStockThreshold: true },
+      }),
+    ]);
+
+    return {
+      totalStockUnits: stock._sum.stockQuantity || 0,
+      reservedStock: reservations._sum.quantity || 0,
+      lowStockProducts: stockLevels.filter(
+        (product) => product.stockQuantity <= product.lowStockThreshold
+      ).length,
+      inventoryValue: null,
+    };
+  }
+
   /**
    * List inventory movement history with filter
    */
-  async getMovementHistory(page = 1, limit = 25, productId?: string) {
+  async getMovementHistory(query: {
+    page: number;
+    limit: number;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const page = query.page;
+    const limit = query.limit;
     const skip = (page - 1) * limit;
-    const where: any = {};
-    if (productId) where.productId = productId;
+    const where: Prisma.InventoryMovementWhereInput = {};
+    if (query.startDate || query.endDate) {
+      where.createdAt = {
+        ...(query.startDate ? { gte: new Date(`${query.startDate}T00:00:00.000Z`) } : {}),
+        ...(query.endDate ? { lte: new Date(`${query.endDate}T23:59:59.999Z`) } : {}),
+      };
+    }
+    if (query.search) {
+      where.OR = [
+        { product: { name: { contains: query.search, mode: "insensitive" } } },
+        { product: { sku: { contains: query.search, mode: "insensitive" } } },
+        { variant: { sku: { contains: query.search, mode: "insensitive" } } },
+        { reason: { contains: query.search, mode: "insensitive" } },
+        { reference: { contains: query.search, mode: "insensitive" } },
+      ];
+    }
 
     const [total, movements] = await Promise.all([
       prisma.inventoryMovement.count({ where }),
