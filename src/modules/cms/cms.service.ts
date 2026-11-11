@@ -16,6 +16,38 @@ import { logger } from "@/lib/observability/logger";
 import { NotFoundError, ValidationError } from "@/lib/api/errors";
 
 // -------------------------------------------------------------
+// IN-MEMORY MICRO-CACHE (Edge/Instance performance boost)
+// -------------------------------------------------------------
+const CMS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const cmsMemoryCache = new Map<string, { data: any; expiresAt: number }>();
+
+function getCmsCache<T>(key: string): T | null {
+  const item = cmsMemoryCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    cmsMemoryCache.delete(key);
+    return null;
+  }
+  return item.data as T;
+}
+
+function setCmsCache<T>(key: string, data: T, ttlMs = CMS_CACHE_TTL_MS): void {
+  cmsMemoryCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+export function invalidateCmsCache(keyPrefix?: string): void {
+  if (!keyPrefix) {
+    cmsMemoryCache.clear();
+  } else {
+    for (const key of Array.from(cmsMemoryCache.keys())) {
+      if (key.startsWith(keyPrefix)) {
+        cmsMemoryCache.delete(key);
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------
 // DEFAULT FALLBACK CONTENT (Zero broken UI when DB is empty)
 // -------------------------------------------------------------
 
@@ -244,40 +276,65 @@ export class CmsService {
     version: number;
     isPreview: boolean;
   }> {
+    const isPreviewRequested = Boolean(options?.preview);
+    const cacheKey = "cms:homepage:published";
+
+    if (!isPreviewRequested) {
+      const cached = getCmsCache<{
+        content: HomepageCms;
+        status: "DRAFT" | "PUBLISHED";
+        version: number;
+        isPreview: boolean;
+      }>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
     try {
       const record = await prisma.cmsContent.findUnique({
         where: { slug: "homepage" },
       });
 
       if (!record || !record.isActive) {
-        return {
+        const fallback = {
           content: DEFAULT_HOMEPAGE_CMS,
-          status: "PUBLISHED",
+          status: "PUBLISHED" as const,
           version: 1,
           isPreview: false,
         };
+        if (!isPreviewRequested) setCmsCache(cacheKey, fallback);
+        return fallback;
       }
 
       const parsed = this.parseCmsRecord(record.payload);
       if (!parsed) {
-        return {
+        const fallback = {
           content: DEFAULT_HOMEPAGE_CMS,
-          status: "PUBLISHED",
+          status: "PUBLISHED" as const,
           version: 1,
           isPreview: false,
         };
+        if (!isPreviewRequested) setCmsCache(cacheKey, fallback);
+        return fallback;
       }
 
       const isPreview = Boolean(options?.preview && parsed.draft);
       const targetPayload = isPreview ? parsed.draft : parsed.published || parsed.draft;
       const validated = homepageCmsSchema.safeParse(targetPayload);
 
-      return {
+      const result = {
         content: validated.success ? validated.data : DEFAULT_HOMEPAGE_CMS,
         status: parsed.status || "PUBLISHED",
         version: parsed.version || 1,
         isPreview,
       };
+
+      if (!isPreview) {
+        setCmsCache(cacheKey, result);
+      }
+
+      return result;
     } catch (err) {
       logger.warn("[CmsFetchFallback]", { slug: "homepage", err });
       return {
@@ -515,6 +572,9 @@ export class CmsService {
       },
     });
 
+    invalidateCmsCache(`cms:${slug}`);
+    invalidateCmsCache("cms:content:");
+
     await prisma.auditLog.create({
       data: {
         userId: author,
@@ -585,6 +645,9 @@ export class CmsService {
       },
     });
 
+    invalidateCmsCache(`cms:${slug}`);
+    invalidateCmsCache("cms:content:");
+
     await prisma.auditLog.create({
       data: {
         userId: author,
@@ -614,23 +677,27 @@ export class CmsService {
       emailNotifications: { configured: boolean; provider: string };
     };
   }> {
-    let settings = DEFAULT_STORE_SETTINGS;
+    const cachedSettings = getCmsCache<StoreSettings>("cms:store-settings:payload");
+    let settings = cachedSettings || DEFAULT_STORE_SETTINGS;
 
-    try {
-      const record = await prisma.cmsContent.findUnique({
-        where: { slug: "store-settings" },
-      });
+    if (!cachedSettings) {
+      try {
+        const record = await prisma.cmsContent.findUnique({
+          where: { slug: "store-settings" },
+        });
 
-      if (record) {
-        const parsed = this.parseCmsRecord(record.payload);
-        const target = parsed?.published || parsed?.draft || parsed;
-        const validated = storeSettingsSchema.safeParse(target);
-        if (validated.success) {
-          settings = validated.data;
+        if (record) {
+          const parsed = this.parseCmsRecord(record.payload);
+          const target = parsed?.published || parsed?.draft || parsed;
+          const validated = storeSettingsSchema.safeParse(target);
+          if (validated.success) {
+            settings = validated.data;
+            setCmsCache("cms:store-settings:payload", settings);
+          }
         }
+      } catch (err) {
+        logger.warn("[StoreSettingsFetchFallback]", { err });
       }
-    } catch (err) {
-      logger.warn("[StoreSettingsFetchFallback]", { err });
     }
 
     // Secure integration status flags (Never expose secret tokens/keys)
@@ -709,6 +776,8 @@ export class CmsService {
         payload: JSON.stringify(record),
       },
     });
+
+    invalidateCmsCache("cms:store-settings");
 
     await prisma.auditLog.create({
       data: {

@@ -159,7 +159,6 @@ export class CatalogService {
         include: {
           category: { select: { id: true, name: true, slug: true } },
           images: { orderBy: { sortOrder: "asc" } },
-          variants: true,
         },
       }),
     ]);

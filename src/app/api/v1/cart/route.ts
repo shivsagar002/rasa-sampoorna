@@ -15,22 +15,18 @@ import { z } from "zod";
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
-    let guestToken = getGuestTokenFromRequest(req);
-    let isNewGuest = false;
+    const guestToken = getGuestTokenFromRequest(req);
 
     if (!user && !guestToken) {
-      guestToken = generateGuestToken();
-      isNewGuest = true;
+      return apiSuccess(cartService.getEmptyCart());
     }
 
-    const cart = await cartService.getOrCreateCart(user?.userId, guestToken);
-    const response = apiSuccess(cart);
-
-    if (isNewGuest && guestToken) {
-      attachGuestTokenCookie(response, guestToken);
+    const cart = await cartService.getCart(user?.userId, guestToken);
+    if (!cart) {
+      return apiSuccess(cartService.getEmptyCart());
     }
 
-    return response;
+    return apiSuccess(cart);
   } catch (error) {
     return handleApiError(error);
   }

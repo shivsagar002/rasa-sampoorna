@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { validateQuery, validateBody } from "@/lib/validation/api-validator";
 import { productFilterQuerySchema, createProductSchema } from "@/modules/catalog/catalog.schema";
 import { catalogService } from "@/modules/catalog/catalog.service";
-import { apiPaginated, apiSuccess } from "@/lib/api/response";
+import { apiPublicPaginated, apiSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/api/errors";
 import { requireStaff } from "@/lib/security/guards";
 
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     const filters = validateQuery(req, productFilterQuerySchema);
     const { items, pagination } = await catalogService.getProducts(filters);
-    return apiPaginated(items, pagination);
+    return apiPublicPaginated(items, pagination, 60, 120);
   } catch (error) {
     return handleApiError(error);
   }

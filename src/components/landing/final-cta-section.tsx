@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 export function FinalCtaSection() {
   const [ctaContent, setCtaContent] = useState({
@@ -35,7 +36,7 @@ export function FinalCtaSection() {
   return (
     <section id="final-cta" className="landing-section section-final-cta">
       <div className="landing-container">
-        <div className="final-cta-banner">
+        <ScrollReveal direction="bottom" className="final-cta-banner">
           {/* Left Visual: Premium Gift Photograph */}
           <div className="final-cta-visual">
             <Image
@@ -71,7 +72,7 @@ export function FinalCtaSection() {
               </Link>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </div>
     </section>
   );

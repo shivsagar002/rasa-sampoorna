@@ -1742,7 +1742,7 @@ export default function AdminDashboardPage() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "5px" }}>Maker's Dedication Note</label>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "5px" }}>Maker&apos;s Dedication Note</label>
                     <textarea
                       rows={2}
                       placeholder="e.g. Handcrafted with devotion by heritage master weavers in Varanasi."

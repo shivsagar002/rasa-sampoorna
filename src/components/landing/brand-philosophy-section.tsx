@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 interface FAQItem {
   id: string;
@@ -56,7 +57,7 @@ export function BrandPhilosophySection() {
       <section id="philosophy" className="landing-section section-story">
         <div className="landing-container">
           <div className="philosophy-layout">
-            <div className="philosophy-collage">
+            <ScrollReveal direction="left" className="philosophy-collage">
               <div className="philosophy-collage-main">
                 <Image
                   src="/landing/philosophy_gallery_v3.webp"
@@ -87,9 +88,9 @@ export function BrandPhilosophySection() {
                   />
                 </div>
               </div>
-            </div>
+            </ScrollReveal>
 
-            <div className="philosophy-text-col">
+            <ScrollReveal direction="right" className="philosophy-text-col">
               <span className="editorial-eyebrow">OUR STORY</span>
               <h2 className="editorial-headline">
                 A little more <br />
@@ -103,7 +104,7 @@ export function BrandPhilosophySection() {
                 <span>Learn More About RASA Sampoorna</span>
                 <span className="link-arrow">→</span>
               </Link>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -113,7 +114,7 @@ export function BrandPhilosophySection() {
 <section id="faqs" className="landing-section section-faq">
   <div className="landing-container">
     <div className="faq-contact-grid">
-      <div className="faq-column">
+      <ScrollReveal direction="left" className="faq-column">
         <span className="editorial-eyebrow">FAQ</span>
         <h3 className="faq-main-title font-serif">
           Quick answers to your questions.
@@ -152,9 +153,9 @@ export function BrandPhilosophySection() {
             );
           })}
         </div>
-      </div>
+      </ScrollReveal>
 
-      <div className="contact-column" id="contact">
+      <ScrollReveal direction="right" className="contact-column" id="contact">
         <div className="faq-contact-photo">
           <Image
             src="/landing/faq_contact_portrait.jpg"
@@ -164,7 +165,7 @@ export function BrandPhilosophySection() {
             className="faq-contact-image"
           />
         </div>
-      </div>
+      </ScrollReveal>
     </div>
   </div>
 </section>

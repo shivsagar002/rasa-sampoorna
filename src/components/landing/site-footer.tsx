@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BotanicalBranch } from "./botanical-decor";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 export function SiteFooter() {
   const [email, setEmail] = useState("");
@@ -30,7 +31,8 @@ export function SiteFooter() {
         </div>
 
         {/* Main Multi-Column Grid */}
-        <div className="footer-columns-grid">
+        <ScrollReveal direction="bottom">
+          <div className="footer-columns-grid">
           {/* Brand Info Column */}
           <div className="footer-brand-col">
             <Link href="/" className="footer-brand-logo" aria-label="RASA (By Hrdyasara) Home">
@@ -166,7 +168,8 @@ export function SiteFooter() {
             <Link href="/refund-policy" className="footer-legal-link">Returns &amp; Refunds</Link>
           </div>
         </div>
-      </div>
+      </ScrollReveal>
+    </div>
     </footer>
   );
 }

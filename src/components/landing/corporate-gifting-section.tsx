@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { BotanicalBranch } from "./botanical-decor";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 interface BenefitItem {
   id: string;
@@ -91,7 +92,7 @@ export function CorporateGiftingSection() {
       <div className="landing-container">
         <div className="gifting-layout">
           {/* Left Column: Narrative, Benefits & CTA */}
-          <div className="gifting-text-col">
+          <ScrollReveal direction="left" className="gifting-text-col">
             <span className="editorial-eyebrow">CORPORATE GIFTING</span>
 
             <h2 className="editorial-headline">
@@ -146,10 +147,10 @@ export function CorporateGiftingSection() {
                 <span className="btn-arrow">→</span>
               </button>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* Right Column: Visual Composition with Gift Box & Sliding Card */}
-          <div className="gifting-visual-col">
+          <ScrollReveal direction="right" className="gifting-visual-col">
             {/* Primary Large Gift Box Image */}
             <div className="gifting-main-photo-wrapper">
               <Image
@@ -206,7 +207,7 @@ export function CorporateGiftingSection() {
                 </button>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </div>
     </section>

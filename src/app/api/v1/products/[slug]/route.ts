@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { catalogService } from "@/modules/catalog/catalog.service";
-import { apiSuccess } from "@/lib/api/response";
+import { apiPublicSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/api/errors";
 
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { slug } = await segmentData.params;
     const product = await catalogService.getProductBySlug(slug);
-    return apiSuccess(product);
+    return apiPublicSuccess(product, 60, 300);
   } catch (error) {
     return handleApiError(error);
   }

@@ -2,12 +2,37 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, ConflictError, BadRequestError } from "@/lib/api/errors";
 import { CategoryInput, UpdateCategoryInput } from "./category.schema";
 
+const CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const categoryMemoryCache = new Map<string, { data: any; expiresAt: number }>();
+
+function getCategoryCache<T>(key: string): T | null {
+  const item = categoryMemoryCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    categoryMemoryCache.delete(key);
+    return null;
+  }
+  return item.data as T;
+}
+
+function setCategoryCache<T>(key: string, data: T): void {
+  categoryMemoryCache.set(key, { data, expiresAt: Date.now() + CATEGORY_CACHE_TTL_MS });
+}
+
+export function invalidateCategoryCache(): void {
+  categoryMemoryCache.clear();
+}
+
 export class CategoryService {
   /**
    * List categories, optionally filtering by active state or root categories
    */
   async listCategories(includeInactive = false) {
-    return await prisma.category.findMany({
+    const cacheKey = `categories:list:${includeInactive}`;
+    const cached = getCategoryCache<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await prisma.category.findMany({
       where: includeInactive ? {} : { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: {
@@ -19,13 +44,20 @@ export class CategoryService {
         _count: { select: { products: true } },
       },
     });
+
+    setCategoryCache(cacheKey, result);
+    return result;
   }
 
   /**
    * Get category hierarchy tree (roots with nested children)
    */
   async getCategoryTree(includeInactive = false) {
-    return await prisma.category.findMany({
+    const cacheKey = `categories:tree:${includeInactive}`;
+    const cached = getCategoryCache<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await prisma.category.findMany({
       where: {
         parentId: null,
         ...(includeInactive ? {} : { isActive: true }),
@@ -46,6 +78,9 @@ export class CategoryService {
         _count: { select: { products: true } },
       },
     });
+
+    setCategoryCache(cacheKey, result);
+    return result;
   }
 
   /**
@@ -90,7 +125,7 @@ export class CategoryService {
       }
     }
 
-    return await prisma.category.create({
+    const created = await prisma.category.create({
       data: {
         name: input.name,
         slug: input.slug,
@@ -102,6 +137,9 @@ export class CategoryService {
       },
       include: { parent: true },
     });
+
+    invalidateCategoryCache();
+    return created;
   }
 
   /**
@@ -130,7 +168,7 @@ export class CategoryService {
       }
     }
 
-    return await prisma.category.update({
+    const updated = await prisma.category.update({
       where: { id },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
@@ -143,6 +181,9 @@ export class CategoryService {
       },
       include: { parent: true, children: true },
     });
+
+    invalidateCategoryCache();
+    return updated;
   }
 
   /**
@@ -165,6 +206,7 @@ export class CategoryService {
     }
 
     await prisma.category.delete({ where: { id } });
+    invalidateCategoryCache();
     return { success: true, message: `Category "${category.name}" removed successfully.` };
   }
 }

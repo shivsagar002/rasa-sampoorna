@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { collectionService } from "@/modules/collections/collection.service";
-import { apiSuccess } from "@/lib/api/response";
+import { apiPublicSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/api/errors";
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const featuredOnly = searchParams.get("featured") === "true";
 
     const collections = await collectionService.listCollections(false, featuredOnly);
-    return apiSuccess(collections);
+    return apiPublicSuccess(collections, 300, 3600);
   } catch (error) {
     return handleApiError(error);
   }

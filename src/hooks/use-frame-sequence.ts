@@ -58,6 +58,12 @@ export function useFrameSequence() {
     let isCancelled = false;
 
     async function startPreload() {
+      // Small devices (mobiles & tablets <= 1024px) use the 100% static hero.
+      // Bypass loading all 150 canvas frames to conserve mobile data and prevent network contention.
+      if (typeof window !== "undefined" && window.innerWidth <= 1024) {
+        return;
+      }
+
       // Tier 1: Hero frame at the top (frame 298)
       await loadFrame(INITIAL_FRAME);
       if (isCancelled) return;
@@ -90,9 +96,17 @@ export function useFrameSequence() {
 
     void startPreload();
 
+    const handleResize = () => {
+      if (typeof window !== "undefined" && window.innerWidth > 1024 && !imagesRef.current.has(INITIAL_FRAME)) {
+        void startPreload();
+      }
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
+
     return () => {
       isCancelled = true;
       isMountedRef.current = false;
+      window.removeEventListener("resize", handleResize);
     };
   }, [loadFrame]);
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import styles from "./minimal-discovery-sections.module.css";
 import { useShop } from "@/context/shop-context";
 import { PRODUCTS } from "@/data/products";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 // 1. Shop by Collection definitions using existing assets & categories
 const COLLECTIONS = [
@@ -131,74 +132,81 @@ export function MinimalDiscoverySections() {
       {showCategories && (
         <section id="shop-by-collection" className={styles.section} aria-label="Shop by Collection">
           <div className={styles.container}>
-            <div className={styles.sectionHeader}>
-              <span className={styles.eyebrow}>OUR COLLECTIONS</span>
-              <h2 className={`${styles.headline} ${styles.collectionHeadline}`}>
-                {collectionLead}
-                {collectionAccent ? (
-                  <>
-                    {" "}
-                    <span className={styles.headlineAccent}>{collectionAccent}</span>
-                  </>
-                ) : null}
-              </h2>
-              <p className={styles.description}>
-                {cmsData?.featuredCategories?.subtitle || "Explore handcrafted creations made by our artisan collective."}
-              </p>
-            </div>
+            <ScrollReveal direction="bottom">
+              <div className={styles.sectionHeader}>
+                <span className={styles.eyebrow}>OUR COLLECTIONS</span>
+                <h2 className={`${styles.headline} ${styles.collectionHeadline}`}>
+                  {collectionLead}
+                  {collectionAccent ? (
+                    <>
+                      {" "}
+                      <span className={styles.headlineAccent}>{collectionAccent}</span>
+                    </>
+                  ) : null}
+                </h2>
+                <p className={styles.description}>
+                  {cmsData?.featuredCategories?.subtitle || "Explore handcrafted creations made by our artisan collective."}
+                </p>
+              </div>
+            </ScrollReveal>
 
-          <div className={styles.collectionGrid}>
-            {COLLECTIONS.map((col) => (
-              <Link key={col.id} href={col.href} className={styles.collectionCard}>
-                <div className={styles.collectionImageFrame}>
-                  <Image
-                    src={col.image}
-                    alt={`${col.name} collection`}
-                    fill
-                    sizes="(max-width: 480px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    className={styles.collectionImg}
-                  />
-                </div>
-                <div className={styles.collectionContent}>
-                  <h3 className={styles.collectionTitle}>{col.name}</h3>
-                  <p className={styles.collectionDesc}>{col.description}</p>
-                  <span className={styles.collectionLink}>
-                    Explore Collection
-                    <span className={styles.collectionArrow} aria-hidden="true">→</span>
-                  </span>
-                </div>
-              </Link>
-            ))}
+            <div className={styles.collectionGrid}>
+              {COLLECTIONS.map((col, index) => (
+                <ScrollReveal key={col.id} direction="bottom" delay={index * 75}>
+                  <Link href={col.href} className={styles.collectionCard}>
+                    <div className={styles.collectionImageFrame}>
+                      <Image
+                        src={col.image}
+                        alt={`${col.name} collection`}
+                        fill
+                        sizes="(max-width: 480px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        className={styles.collectionImg}
+                      />
+                    </div>
+                    <div className={styles.collectionContent}>
+                      <h3 className={styles.collectionTitle}>{col.name}</h3>
+                      <p className={styles.collectionDesc}>{col.description}</p>
+                      <span className={styles.collectionLink}>
+                        Explore Collection
+                        <span className={styles.collectionArrow} aria-hidden="true">→</span>
+                      </span>
+                    </div>
+                  </Link>
+                </ScrollReveal>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
       )}
 
       {/* 2. FEATURED PRODUCTS */}
       {showProducts && (
       <section id="discovery-featured-products" className={`${styles.section} ${styles.featuredSection}`} aria-label="Featured Products">
         <div className={styles.container}>
-          <div className={styles.sectionHeaderRow}>
-            <div>
-              <span className={styles.eyebrow}>CURATED PIECES</span>
-              <h2 className={styles.headline}>
-                {cmsData?.featuredProducts?.title || "Featured Products"}
-              </h2>
-              <p className={styles.description}>
-                {cmsData?.featuredProducts?.subtitle || "A selection of handmade pieces from our current catalogue."}
-              </p>
+          <ScrollReveal direction="bottom">
+            <div className={styles.sectionHeaderRow}>
+              <div>
+                <span className={styles.eyebrow}>CURATED PIECES</span>
+                <h2 className={styles.headline}>
+                  {cmsData?.featuredProducts?.title || "Featured Products"}
+                </h2>
+                <p className={styles.description}>
+                  {cmsData?.featuredProducts?.subtitle || "A selection of handmade pieces from our current catalogue."}
+                </p>
+              </div>
+              <Link href="/shop" className={styles.headerLink}>
+                View All Products →
+              </Link>
             </div>
-            <Link href="/shop" className={styles.headerLink}>
-              View All Products →
-            </Link>
-          </div>
+          </ScrollReveal>
 
           <div ref={productsRef} className={styles.productsGrid}>
             {FEATURED_PRODUCTS.map((prod, index) => (
-              <div
+              <ScrollReveal
                 key={prod.id}
+                direction="bottom"
+                delay={index * 75}
                 className={`${styles.productReveal} ${productsInView ? styles.productRevealIn : ""}`}
-                style={{ transitionDelay: `${index * 90}ms` }}
               >
               <article className={styles.productCard}>
                 <div className={styles.productImageFrame}>
@@ -237,7 +245,7 @@ export function MinimalDiscoverySections() {
                   </div>
                 </Link>
               </article>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -248,7 +256,7 @@ export function MinimalDiscoverySections() {
       <section id="discovery-corporate-gifting" className={styles.section} aria-label="Corporate Gifting">
         <div className={styles.container}>
           <div className={styles.splitRow}>
-            <div className={`${styles.splitImageCol} ${styles.giftStage}`}>
+            <ScrollReveal direction="left" className={`${styles.splitImageCol} ${styles.giftStage}`}>
               <div className={styles.giftMainFrame}>
                 <Image
                   src="/landing/corporate_gift_box_v2.webp"
@@ -271,8 +279,8 @@ export function MinimalDiscoverySections() {
                   className={styles.splitImg}
                 />
               </div>
-            </div>
-            <div className={styles.splitContentCol}>
+            </ScrollReveal>
+            <ScrollReveal direction="right" className={styles.splitContentCol}>
               <span className={styles.eyebrow}>BESPOKE GIFTING</span>
               <h2 className={styles.headline}>Corporate Gifting</h2>
               <p className={styles.splitText}>
@@ -281,7 +289,7 @@ export function MinimalDiscoverySections() {
               <Link href="/corporate-gifting" className={styles.ctaButton}>
                 Explore Corporate Gifting →
               </Link>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -290,7 +298,7 @@ export function MinimalDiscoverySections() {
       <section id="discovery-maker-story" className={styles.section} aria-label="Maker Story">
         <div className={styles.container}>
           <div className={styles.splitRowReverse}>
-            <div className={styles.splitContentCol}>
+            <ScrollReveal direction="left" className={styles.splitContentCol}>
               <span className={styles.eyebrow}>OUR FOUNDATION</span>
               <h2 className={styles.headline}>Behind the Craft</h2>
               <p className={styles.splitText}>
@@ -299,8 +307,8 @@ export function MinimalDiscoverySections() {
               <Link href="/contact" className={styles.ctaLink}>
                 Learn About Our Story →
               </Link>
-            </div>
-            <div className={`${styles.splitImageCol} ${styles.craftStage}`}>
+            </ScrollReveal>
+            <ScrollReveal direction="right" className={`${styles.splitImageCol} ${styles.craftStage}`}>
               <span className={styles.craftDots} aria-hidden="true" />
               <div className={styles.craftFrame}>
                 <Image
@@ -311,7 +319,7 @@ export function MinimalDiscoverySections() {
                   className={styles.splitImg}
                 />
               </div>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>

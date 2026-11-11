@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/security/guards";
 import { cmsService } from "@/modules/cms/cms.service";
-import { apiSuccess } from "@/lib/api/response";
+import { apiSuccess, apiPublicSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/api/errors";
 import { UserRole } from "@prisma/client";
 
@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
     }
 
     const homepage = await cmsService.getHomepageCms({ preview: isPreview });
-    return apiSuccess(homepage);
+    if (isPreview) {
+      return apiSuccess(homepage);
+    }
+    return apiPublicSuccess(homepage, 120, 600);
   } catch (error) {
     return handleApiError(error);
   }

@@ -8,6 +8,60 @@ const DEFAULT_SHIPPING_FEE_MINOR_UNITS = 15000;     // ₹150.00 in paise
 
 export class CartService {
   /**
+   * Find an existing cart without creating one (avoids passive database writes on read requests)
+   */
+  async getCart(userId?: string, guestToken?: string) {
+    if (!userId && !guestToken) {
+      return null;
+    }
+
+    const cart = await prisma.cart.findFirst({
+      where: userId ? { userId } : { guestToken },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: {
+                  include: {
+                    images: { orderBy: { sortOrder: "asc" } },
+                    category: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      return null;
+    }
+
+    return this.calculateCartSummary(cart);
+  }
+
+  /**
+   * Returns empty cart payload matching storefront shape without hitting database
+   */
+  getEmptyCart() {
+    return {
+      id: null,
+      items: [],
+      subtotalRupees: 0,
+      subtotalMinorUnits: 0,
+      shippingFeeRupees: 0,
+      shippingFeeMinorUnits: 0,
+      totalRupees: 0,
+      totalMinorUnits: 0,
+      itemCount: 0,
+      freeShippingThresholdRemainingRupees: FREE_SHIPPING_THRESHOLD_MINOR_UNITS / 100,
+      isFreeShippingEligible: false,
+    };
+  }
+
+  /**
    * Find or initialize a cart for an authenticated user or guest token
    */
   async getOrCreateCart(userId?: string, guestToken?: string) {

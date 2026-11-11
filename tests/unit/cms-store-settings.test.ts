@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { CmsService, DEFAULT_HOMEPAGE_CMS, DEFAULT_POLICY_PAGES, DEFAULT_STORE_SETTINGS } from "@/modules/cms/cms.service";
+import { CmsService, DEFAULT_HOMEPAGE_CMS, DEFAULT_POLICY_PAGES, DEFAULT_STORE_SETTINGS, invalidateCmsCache } from "@/modules/cms/cms.service";
 import { safeLinkSchema, safeImageSchema, storeSettingsSchema } from "@/modules/cms/cms.schema";
 import { prisma } from "@/lib/db/prisma";
 
@@ -22,6 +22,7 @@ describe("CMS & Store Settings Module Unit Tests", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateCmsCache();
     cmsService = new CmsService();
   });
 

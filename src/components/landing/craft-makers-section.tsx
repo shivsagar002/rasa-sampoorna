@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { BotanicalBranch } from "./botanical-decor";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 export function CraftMakersSection() {
   return (
@@ -9,7 +10,7 @@ export function CraftMakersSection() {
       <div className="landing-container">
         <div className="makers-layout">
           {/* Visual Side: Artisan Photo Composition */}
-          <div className="makers-visual-col">
+          <ScrollReveal direction="left" className="makers-visual-col">
             <div className="makers-collage-wrapper">
               {/* Botanical Accent top-left */}
               <div className="makers-botanical-tl" aria-hidden="true">
@@ -33,10 +34,10 @@ export function CraftMakersSection() {
                 <BotanicalBranch color="rgba(95, 120, 90, 0.35)" />
               </div>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* Narrative Story Side */}
-          <div className="makers-story-col">
+          <ScrollReveal direction="right" className="makers-story-col">
             <span className="editorial-eyebrow">THE PEOPLE BEHIND THE CRAFT</span>
 
             <h2 className="editorial-headline">
@@ -57,9 +58,9 @@ export function CraftMakersSection() {
               </a>
             </div>
 
-          </div>
+          </ScrollReveal>
 
-          <div className="makers-followup-col">
+          <ScrollReveal direction="bottom" delay={120} className="makers-followup-col">
             {/* Editorial Quote Card */}
             <div className="makers-quote-card">
               <span className="quote-mark" aria-hidden="true">“</span>
@@ -107,7 +108,7 @@ export function CraftMakersSection() {
                 <div className="impact-stat-label">Artistic Creations</div>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </div>
     </section>

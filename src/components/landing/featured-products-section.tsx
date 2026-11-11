@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 interface ProductItem {
   id: string;
@@ -49,44 +50,52 @@ export function FeaturedProductsSection() {
     <section id="featured-products" className="landing-section section-products">
       <div className="landing-container">
         {/* Header Row */}
-        <div className="products-header">
-          <div className="products-header-text">
-            <span className="editorial-eyebrow">FEATURED PRODUCTS</span>
-            <h2 className="editorial-headline">
-              Handpicked <br className="hidden-mobile" />
-              just for you.
-            </h2>
-            <p className="editorial-description">Unique pieces. Limited stock.</p>
-          </div>
+        <ScrollReveal direction="bottom">
+          <div className="products-header">
+            <div className="products-header-text">
+              <span className="editorial-eyebrow">FEATURED PRODUCTS</span>
+              <h2 className="editorial-headline">
+                Handpicked <br className="hidden-mobile" />
+                just for you.
+              </h2>
+              <p className="editorial-description">Unique pieces. Limited stock.</p>
+            </div>
 
-          <div className="products-header-link">
-            <a href="#featured-products" className="editorial-link">
-              <span>View All Products</span>
-              <span className="link-arrow">→</span>
-            </a>
+            <div className="products-header-link">
+              <a href="#featured-products" className="editorial-link">
+                <span>View All Products</span>
+                <span className="link-arrow">→</span>
+              </a>
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
 
         {/* 4-Column Product Grid */}
         <div className="products-grid">
-          {FEATURED_PRODUCTS.map((product) => (
-              <div key={product.id} className="product-card" id={`product-${product.id}`}>
-                <div className="product-image-container">
-                  <Image
-                    src={product.image}
-                    alt={`${product.name} handcrafted by RASA Sampoorna artisans`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 280px"
-                    className="product-image"
-                  />
-                </div>
-
-                <div className="product-details">
-                  <h3 className="product-name font-serif">{product.name}</h3>
-                  <span className="product-price font-sans">{product.priceFormatted}</span>
-                </div>
+          {FEATURED_PRODUCTS.map((product, index) => (
+            <ScrollReveal
+              key={product.id}
+              direction="bottom"
+              delay={index * 80}
+              className="product-card"
+              id={`product-${product.id}`}
+            >
+              <div className="product-image-container">
+                <Image
+                  src={product.image}
+                  alt={`${product.name} handcrafted by RASA Sampoorna artisans`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 280px"
+                  className="product-image"
+                />
               </div>
-            ))}
+
+              <div className="product-details">
+                <h3 className="product-name font-serif">{product.name}</h3>
+                <span className="product-price font-sans">{product.priceFormatted}</span>
+              </div>
+            </ScrollReveal>
+          ))}
         </div>
 
         {/* Mobile View All Products Button */}

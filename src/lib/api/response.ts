@@ -73,7 +73,8 @@ export function apiPublicSuccess<T>(
 export function apiPaginated<T>(
   data: T[],
   meta: { page: number; limit: number; total: number },
-  status = 200
+  status = 200,
+  headers?: HeadersInit
 ): NextResponse<PaginatedResponse<T>> {
   const totalPages = Math.ceil(meta.total / meta.limit);
   return NextResponse.json(
@@ -89,8 +90,23 @@ export function apiPaginated<T>(
         hasPrevPage: meta.page > 1,
       },
     },
-    { status }
+    { status, headers }
   );
+}
+
+/**
+ * Return a public cached paginated response for product catalogs and collections
+ */
+export function apiPublicPaginated<T>(
+  data: T[],
+  meta: { page: number; limit: number; total: number },
+  maxAge = 60,
+  sMaxAge = 120,
+  status = 200
+): NextResponse<PaginatedResponse<T>> {
+  return apiPaginated(data, meta, status, {
+    "Cache-Control": `public, max-age=${maxAge}, s-maxage=${sMaxAge}, stale-while-revalidate=600`,
+  });
 }
 
 /**
